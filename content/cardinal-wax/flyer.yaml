@@ -1,0 +1,11 @@
+# A portrait photo, so the page bisects vertically and the text flows in a
+# column. Nothing here pins the grid, so the cell and crop are picked from the
+# folder name — stable across runs, different from the next flyer.
+performer: Cardinal Wax
+venue: The Bell House
+date: 2026-10-03          # a real date, formatted by design.yaml's formats.date
+time: "8:00 PM"           # quote times: bare 8:00 is a sexagesimal number in yaml
+cost: $22 advance / $25 door
+details: >-
+  Doors at seven. All ages until ten, 21+ after.
+  Tickets at the bar or online, cash and card.
