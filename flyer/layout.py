@@ -73,20 +73,39 @@ class LayoutError(Exception):
 # content preparation
 # --------------------------------------------------------------------------
 
-def format_value(name, value, formats):
-    """Turn a yaml value into display text (one string, newlines = hard breaks)."""
+DEFAULT_FORMATS = {"date": "%A, %B %-d", "time": "%-I:%M %p"}
+
+
+def _patterns(key, formats):
+    """The strftime patterns for a kind of value, longest form first."""
+    patterns = formats.get(key) or DEFAULT_FORMATS[key]
+    return [patterns] if isinstance(patterns, str) else list(patterns)
+
+
+def format_variants(name, value, formats):
+    """Every acceptable rendering of a yaml value, longest first.
+
+    A date given as a real date can be set several ways, so the layout can
+    fall back to a shorter one when the column it lands in is too narrow for
+    the long one. A date given as a string has only itself.
+    """
     if isinstance(value, (list, tuple)):
-        return "\n".join(format_value(name, v, formats) for v in value)
+        return ["\n".join(format_variants(name, v, formats)[0] for v in value)]
     if isinstance(value, dt.datetime):
         key = "time" if name == "time" else "date"
-        return value.strftime(formats.get(key, "%A, %B %-d"))
+        return [value.strftime(p) for p in _patterns(key, formats)]
     if isinstance(value, dt.date):
-        return value.strftime(formats.get("date", "%A, %B %-d"))
+        return [value.strftime(p) for p in _patterns("date", formats)]
     if isinstance(value, dt.time):
-        return value.strftime(formats.get("time", "%-I:%M %p"))
+        return [value.strftime(p) for p in _patterns("time", formats)]
     if isinstance(value, bool):
-        return "Yes" if value else "No"
-    return str(value)
+        return ["Yes" if value else "No"]
+    return [str(value)]
+
+
+def format_value(name, value, formats):
+    """The longest rendering of a yaml value."""
+    return format_variants(name, value, formats)[0]
 
 
 def apply_case(text, case):
@@ -113,11 +132,31 @@ class Block:
     span: object         # grid columns to occupy; "all" spans the measure
     fit: bool            # may shrink on its own to fit the measure
     font: object
+    variants: List[str] = dc_field(default_factory=list)
     local: float = 1.0   # this block's own shrink, set by fit_width
     lines: List[str] = dc_field(default_factory=list)
 
     def px(self, scale=1.0):
         return self.size * self.local * scale
+
+    def choose_variant(self, width, scale=1.0):
+        """Take the longest form of the value that sets without wrapping.
+
+        Shortening is a last resort before a wrap, not a habit: a field only
+        drops to a briefer form when the column the grid gave it cannot hold
+        the long one.
+        """
+        if len(self.variants) < 2:
+            return self.text
+        size = self.size * scale          # judged before any shrink of its own
+        for text in self.variants:
+            widest = max(self.font.width(line, size, self.tracking)
+                         for line in text.split("\n"))
+            if widest <= width + fontmetrics.TOLERANCE:
+                self.text = text
+                return text
+        self.text = self.variants[-1]
+        return self.text
 
     def fit_width(self, width, scale=1.0):
         """Shrink this block alone until its longest unbreakable word fits.
@@ -164,11 +203,13 @@ def build_block(design, data, scheme, name):
     if value is None or (isinstance(value, (str, list, tuple)) and len(value) == 0):
         return None
     style = design.field_style(name)
-    text = apply_case(format_value(name, value, design.formats), style.get("case"))
+    variants = [apply_case(text, style.get("case"))
+                for text in format_variants(name, value, design.formats)]
     weight = int(style.get("weight", 400))
     return Block(
         name=name,
-        text=text,
+        variants=variants,
+        text=variants[0],
         size=float(style.get("size", 12)),
         weight=weight,
         leading=float(style.get("leading", 1.2)),
@@ -276,6 +317,7 @@ def flow_grid(cells, box, anchor, free_align, flow, options=None):
                 row, cursor = [], 0
             width = span * column_width + (span - 1) * gutter
             for block in blocks:
+                block.choose_variant(width, scale)
                 block.fit_width(width, scale)
                 block.wrap(width, scale)
             row.append((blocks, cursor * (column_width + gutter), width))

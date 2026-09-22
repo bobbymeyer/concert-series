@@ -1,6 +1,7 @@
 import unittest
 
-from flyer.layout import LayoutError, Rect, apply_case, format_value, plan
+from flyer.layout import (LayoutError, Rect, apply_case, format_value,
+                          format_variants, plan)
 from flyer.slots import Chooser, normalize_align
 
 from helpers import BASE, Fixture, SeriesFixture
@@ -64,6 +65,18 @@ class TestContent(unittest.TestCase):
         self.assertEqual(
             format_value("date", dt.date(2026, 10, 3), {"date": "%A, %B %-d"}),
             "Saturday, October 3")
+
+    def test_variants_run_longest_first(self):
+        import datetime as dt
+        formats = {"date": ["%A, %B %-d", "%a, %B %-d", "%a, %b %-d"]}
+        self.assertEqual(
+            format_variants("date", dt.date(2026, 9, 23), formats),
+            ["Wednesday, September 23", "Wed, September 23", "Wed, Sep 23"])
+
+    def test_a_date_written_as_a_string_has_only_itself(self):
+        self.assertEqual(
+            format_variants("date", "Saturday, November 14", {"date": ["%A"]}),
+            ["Saturday, November 14"])
 
     def test_lists_become_hard_lines(self):
         self.assertEqual(format_value("details", ["one", "two"], {}), "one\ntwo")
@@ -283,6 +296,33 @@ class TestGrid2(unittest.TestCase):
             page = plan(flyer, "p.png")
             row = next(r for r in page.notes["rows"] if "venue" in fields_in(r))
             self.assertEqual(row, [["venue"], ["date", "time"], ["cost"]])
+
+    def test_a_date_shortens_only_when_the_column_demands_it(self):
+        import datetime as dt
+
+        def date_line(value, size):
+            with Fixture({"date": value}, size=size) as flyer:
+                page = plan(flyer, "p.png")
+                return next(l.text for l in page.lines if l.field == "date")
+
+        # 218pt: too wide for the row grid's 206pt cell, fine in the column
+        # flow's 234pt measure -- so the same date sets differently in each.
+        middling = dt.date(2026, 2, 11)
+        self.assertEqual(date_line(middling, (90, 60)), "Wed, February 11")
+        self.assertEqual(date_line(middling, (60, 90)), "Wednesday, February 11")
+        # A short date keeps the long form everywhere.
+        short = dt.date(2026, 3, 3)
+        self.assertEqual(date_line(short, (90, 60)), "Tuesday, March 3")
+        self.assertEqual(date_line(short, (60, 90)), "Tuesday, March 3")
+        # A date too wide for either falls back in both.
+        self.assertEqual(date_line(dt.date(2026, 9, 23), (60, 90)),
+                         "Wed, September 23")
+
+    def test_shortening_never_makes_a_field_wrap(self):
+        import datetime as dt
+        with Fixture({"date": dt.date(2026, 9, 23)}, size=(90, 60)) as flyer:
+            page = plan(flyer, "p.png")
+            self.assertEqual(len([l for l in page.lines if l.field == "date"]), 1)
 
     def test_too_many_columns_is_reported(self):
         with Fixture({"grid": {"columns": {"column": 40}}}, size=(60, 90)) as f:

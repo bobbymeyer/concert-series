@@ -45,6 +45,13 @@ the headline takes a row to itself and reads as a banner:
 └───────────────────────────────────┴───────────────────┘
 ```
 
+A field shortens rather than wraps when its cell is too narrow. `formats.date`
+is a list of strftime patterns, longest first, and a date takes the longest one
+that sets on a single line in the column the grid gave it — so "Wednesday,
+September 23" becomes "Wed, September 23" in the row grid's narrower cell and
+stays whole in the column flow's wider measure. Only a date written as a real
+date can do this; one written as a string has only itself to offer.
+
 A cell can hold a stack of fields rather than one: `typography.order` takes a
 list where a single field would go, and those fields set one under another in
 the same column. That is how the address sits under the venue and the time
@@ -168,7 +175,7 @@ python3 -m flyer build [slug ...]   # render to out/ (the default command)
 python3 -m flyer list               # content folders and their photos
 python3 -m flyer inspect [slug]     # the resolved slots and every baseline
 python3 -m flyer sheet              # out/index.html, a contact sheet
-make test                           # 84 tests, standard library only
+make test                           # 88 tests, standard library only
 ```
 
 `build` prints what each flyer resolved to:

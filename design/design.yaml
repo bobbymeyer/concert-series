@@ -125,7 +125,14 @@ typography:
       span: 3         # the sentence needs a measure, not a column
 
 formats:
-  date: "%A, %B %-d"
+  # Longest form first. A field takes the longest one that sets without
+  # wrapping in the column the grid gives it, so a date only shortens when the
+  # width demands it. This needs a real date in the yaml; a date written as a
+  # string has only itself to offer.
+  date:
+    - "%A, %B %-d"    # Saturday, November 14
+    - "%a, %B %-d"    # Sat, November 14
+    - "%a, %b %-d"    # Sat, Nov 14
   time: "%-I:%M %p"
 
 palette:
