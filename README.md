@@ -29,20 +29,20 @@ right aligned; photo on top, the text sits up against it, and so on.
 
 **The flow** is a column grid inside the text box, and it follows the split. A
 vertical split gives a tall, narrow measure, so the grid is one column and the
-fields stack. A horizontal split gives a wide, short band, so the grid is four
+fields stack. A horizontal split gives a wide, short band, so the grid is five
 columns and the fields run across it, breaking to a new row when one is full. A
 field can span several columns, and the performer spans them all — which is why
 the headline takes a row to itself and reads as a banner:
 
 ```
-┌─────────────────────────────────────────────┐
-│ MARTA REYES TRIO                            │  performer, span: all
-├──────────────────────┬──────────────────────┤
-│ GALLERY 9            │ Saturday, November 14│  [venue, address] 2
-│ 9 Ludlow Street      │ 9:30 PM              │  [date, time] 2
-├──────────┬───────────┴──────────────────────┤
-│ FREE     │ Late set, no opener.             │  cost 1, details 2
-└──────────┴──────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│ MARTA REYES TRIO                                     │  performer, all
+├────────────────────┬─────────────────────┬───────────┤
+│ GALLERY 9          │ Saturday, November 14│ FREE     │  [venue, address] 2
+│ 9 Ludlow Street    │ 9:30 PM              │          │  [date, time] 2, cost 1
+├────────────────────┴──────────────┬───────┴───────────┤
+│ Late set, no opener.              │                   │  details 3
+└───────────────────────────────────┴───────────────────┘
 ```
 
 A cell can hold a stack of fields rather than one: `typography.order` takes a

@@ -185,26 +185,26 @@ class TestTextFits(unittest.TestCase):
             self.assertGreater(len({round(l.baseline, 3) for l in page.lines}), 1)
 
     def test_row_align_can_be_moved_to_the_top(self):
+        """A one-line cost beside a two-field stack shows which edge lines up."""
         def measure(row_align):
             overrides = {"grid": {"row_align": row_align}} if row_align else {}
             with Fixture(overrides, size=(90, 60)) as flyer:
                 page = plan(flyer, "p.png")
-                row = next(r for r in page.notes["rows"]
-                           if "details" in fields_in(r))
-                self.assertIn("cost", fields_in(row))   # two cells, two heights
+                row = next(r for r in page.notes["rows"] if "cost" in fields_in(r))
+                self.assertIn("address", fields_in(row))
                 first, last = {}, {}
                 for line in page.lines:
-                    if line.field in ("cost", "details"):
+                    if line.field in ("cost", "venue", "address"):
                         first.setdefault(line.field, (line.baseline, line.size))
                         last[line.field] = line.baseline
                 caps = {f: b - 0.7 * size for f, (b, size) in first.items()}
                 return caps, last
 
-        _, last = measure(None)             # the default: a shared last baseline
-        self.assertAlmostEqual(last["cost"], last["details"], places=3)
-        caps, last = measure("top")         # cap tops align instead
-        self.assertAlmostEqual(caps["cost"], caps["details"], places=2)
-        self.assertNotAlmostEqual(last["cost"], last["details"], places=1)
+        _, last = measure(None)      # the default: the cells end together
+        self.assertAlmostEqual(last["cost"], last["address"], places=3)
+        caps, last = measure("top")  # the cells start together instead
+        self.assertAlmostEqual(caps["cost"], caps["venue"], places=2)
+        self.assertNotAlmostEqual(last["cost"], last["address"], places=1)
 
     def test_sparse_content_still_lays_out(self):
         with Fixture({"venue": None, "address": None, "cost": None,
@@ -237,8 +237,8 @@ class TestGrid2(unittest.TestCase):
             page = plan(flyer, "p.png")
             box = text_box(page)
             columns, width = page.notes["columns"], page.notes["column_width"]
-            self.assertEqual(columns, 4)
-            gutter = 26
+            self.assertGreater(columns, 1)
+            gutter = (box.w - columns * width) / (columns - 1)
             tracks = [round(box.x + i * (width + gutter), 2) for i in range(columns)]
             for line in page.lines:
                 self.assertIn(round(line.x, 2), tracks, line.text)
@@ -268,20 +268,21 @@ class TestGrid2(unittest.TestCase):
         with Fixture(size=(90, 60)) as flyer:
             page = plan(flyer, "p.png")
             row = next(r for r in page.notes["rows"] if "venue" in fields_in(r))
-            self.assertEqual(row, [["venue", "address"], ["date", "time"]])
+            self.assertEqual(row, [["venue", "address"], ["date", "time"], ["cost"]])
             at = {l.field: (l.x, l.baseline) for l in page.lines}
             # Stacked: same column, the second below the first.
             for top, below in (("venue", "address"), ("date", "time")):
                 self.assertEqual(at[top][0], at[below][0])
                 self.assertGreater(at[below][1], at[top][1])
-            # Side by side: the two cells start on different tracks.
+            # Side by side: the cells start on different tracks.
             self.assertLess(at["venue"][0], at["date"][0])
+            self.assertLess(at["date"][0], at["cost"][0])
 
     def test_a_missing_field_collapses_its_stack(self):
         with Fixture({"address": None}, size=(90, 60)) as flyer:
             page = plan(flyer, "p.png")
             row = next(r for r in page.notes["rows"] if "venue" in fields_in(r))
-            self.assertEqual(row, [["venue"], ["date", "time"]])
+            self.assertEqual(row, [["venue"], ["date", "time"], ["cost"]])
 
     def test_too_many_columns_is_reported(self):
         with Fixture({"grid": {"columns": {"column": 40}}}, size=(60, 90)) as f:

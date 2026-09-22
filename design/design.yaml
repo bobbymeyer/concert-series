@@ -18,8 +18,8 @@ grid:
   # all takes a grid row to itself.
   columns:
     column: 1
-    row: 4
-  column_gap: 26      # the grid gutter
+    row: 5
+  column_gap: 16      # the grid gutter
   row_gap:            # a floor on the space between grid rows; a stacked field
     column: 0         # keeps its own space_after, a grid row gets some air
     row: 12
@@ -108,6 +108,7 @@ typography:
       leading: 1.15
       color: tint     # the second line of the pair, held back toward the ground
       space_after: 13
+      span: 2
     cost:
       size: 12
       weight: 700
@@ -115,12 +116,13 @@ typography:
       tracking: 0.09
       leading: 1.2
       space_after: 13
+      span: 1         # the narrow column beside the time; long prices wrap
     details:
       size: 10.5
       weight: 400
       leading: 1.5
       space_after: 0
-      span: 2         # the sentence needs a measure, not a column
+      span: 3         # the sentence needs a measure, not a column
 
 formats:
   date: "%A, %B %-d"
