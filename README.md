@@ -57,12 +57,19 @@ colour and which way the photo goes, so a dark ground never swallows the photo.
 
 ## Slots, and why the output is stable
 
-Anything you do not specify is a *slot*: the ground colour, which cell holds the photo,
-the crop anchors, and where the text block sits along its free axis. An unset
-slot is not random per run — it is derived from the flyer's folder name, so the
-same content always produces the same flyer, and two flyers in the same series
-get different ones. Each slot draws from its own stream, so pinning one never
-shifts another.
+Anything you do not specify is a *slot*: which cell holds the photo, the crop
+anchors, and where the text block sits along its free axis. An unset slot is not
+random per run — it is derived from the flyer's folder name, so the same content
+always produces the same flyer, and two flyers in the same series get different
+ones. Each slot draws from its own stream, so pinning one never shifts another.
+
+**The ground colour is the exception**, because it is the one choice that should
+look deliberate across a run. Hashing each flyer independently clumps — six
+flyers routinely draw the same ground three times — so an unpinned flyer takes
+the next ground in rotation instead, by its position in the content folder,
+skipping any a sibling has pinned for itself. Six flyers get six grounds. The
+trade is that inserting a flyer re-colours the ones after it; set
+`palette.assign: independent` to go back to hashing.
 
 ```yaml
 scheme: dusk        # a ground by name, from the palette
@@ -153,17 +160,18 @@ python3 -m flyer build [slug ...]   # render to out/ (the default command)
 python3 -m flyer list               # content folders and their photos
 python3 -m flyer inspect [slug]     # the resolved slots and every baseline
 python3 -m flyer sheet              # out/index.html, a contact sheet
-make test                           # 76 tests, standard library only
+make test                           # 82 tests, standard library only
 ```
 
 `build` prints what each flyer resolved to:
 
 ```
 out/cardinal-wax.svg  portrait/vertical photo:start middle/end  column flow
-                      scheme:dusk  type:100%  905kB
+                      ground:bone 1/6  type:100%  905kB
 ```
 
-`type:100%` means nothing had to be shrunk to fit. A headline too wide for the
+`1/6` is the flyer's place in the ground rotation, and `type:100%` means
+nothing had to be shrunk to fit. A headline too wide for the
 measure shrinks on its own, without dragging the body copy down with it; only a
 text block too *tall* for its cell scales the whole thing.
 

@@ -29,6 +29,30 @@ def tiny_png(path, width, height):
     png(path, width, height, scene(width, height, path.name))
 
 
+class SeriesFixture:
+    """A temporary content folder holding several flyers."""
+
+    def __init__(self, flyers, size=(60, 90)):
+        self.flyers = flyers          # {slug: yaml overrides}
+        self.size = size
+
+    def __enter__(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.root = self.tmp / "content"
+        self.root.mkdir()
+        for slug, overrides in self.flyers.items():
+            folder = self.root / slug
+            folder.mkdir()
+            tiny_png(folder / "photo.png", *self.size)
+            (folder / "flyer.yaml").write_text(
+                yaml.safe_dump(dict(BASE, **(overrides or {}))), encoding="utf-8")
+        design = Design.load(DESIGN)
+        return [Flyer(folder, design) for folder in sorted(self.root.iterdir())]
+
+    def __exit__(self, *exc):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+
 class Fixture:
     """A temporary content folder, used as a context manager."""
 

@@ -3,7 +3,7 @@ import unittest
 from flyer.layout import LayoutError, Rect, apply_case, format_value, plan
 from flyer.slots import Chooser, normalize_align
 
-from helpers import Fixture
+from helpers import Fixture, SeriesFixture
 
 EPS = 0.75          # a fraction of a point of rounding slack
 
@@ -278,6 +278,58 @@ class TestDeterminism(unittest.TestCase):
                 notes = plan(flyer, "p.png").notes
                 picks.add((notes["image_cell"], notes["h_align"], notes["scheme"]))
         self.assertGreater(len(picks), 1, "seeds should reach different layouts")
+
+
+class TestSeries(unittest.TestCase):
+    """Unpinned grounds rotate through the palette rather than being hashed."""
+
+    SIX = {f"flyer-{i}": None for i in range(6)}
+
+    def grounds(self, flyers):
+        return [plan(f, "p.png").notes["scheme"] for f in flyers]
+
+    def test_a_run_of_flyers_spreads_across_the_palette(self):
+        with SeriesFixture(self.SIX) as flyers:
+            grounds = self.grounds(flyers)
+            self.assertEqual(len(set(grounds)), 6, grounds)
+            self.assertEqual(grounds,
+                             ["bone", "acid", "mint", "clay", "dusk", "night"])
+
+    def test_more_flyers_than_grounds_wraps_around(self):
+        with SeriesFixture({f"flyer-{i}": None for i in range(8)}) as flyers:
+            grounds = self.grounds(flyers)
+            self.assertEqual(grounds[6:], grounds[:2])
+
+    def test_a_pinned_ground_is_left_out_of_the_rotation(self):
+        flyers = dict(self.SIX)
+        flyers["flyer-2"] = {"scheme": "bone"}
+        with SeriesFixture(flyers) as built:
+            grounds = self.grounds(built)
+            self.assertEqual(grounds[2], "bone")
+            # bone is spoken for, so nobody else takes it.
+            self.assertEqual(grounds.count("bone"), 1)
+            self.assertEqual(len(set(grounds)), 6, grounds)
+
+    def test_position_is_reported(self):
+        with SeriesFixture(self.SIX) as flyers:
+            self.assertEqual([plan(f, "p.png").notes["series"] for f in flyers],
+                             [f"{i + 1}/6" for i in range(6)])
+
+    def test_building_one_flyer_gives_it_the_same_ground(self):
+        with SeriesFixture(self.SIX) as flyers:
+            alone = plan(flyers[3], "p.png").notes["scheme"]
+        with SeriesFixture(self.SIX) as flyers:
+            self.assertEqual(self.grounds(flyers)[3], alone)
+
+    def test_independent_assignment_goes_back_to_hashing(self):
+        flyers = {slug: {"palette": {"assign": "independent"}} for slug in self.SIX}
+        with SeriesFixture(flyers) as built:
+            grounds = self.grounds(built)
+            self.assertEqual([plan(f, "p.png").notes["series"] for f in built],
+                             ["-"] * 6)
+            # Each flyer is drawn on its own, so the palette order is not used.
+            self.assertNotEqual(
+                grounds, ["bone", "acid", "mint", "clay", "dusk", "night"])
 
 
 class TestSchemes(unittest.TestCase):

@@ -43,9 +43,11 @@ def cmd_build(args):
         target = out / f"{flyer.slug}.svg"
         target.write_text(svg, encoding="utf-8")
         n = page.notes
+        series = "" if n["series"] == "-" else f" {n['series']}"
         print(f"{target}  {n['orientation']}/{n['split']} photo:{n['image_cell']} "
               f"{n['h_align']}/{n['v_align']}  {n['flow']} flow  "
-              f"scheme:{n['scheme']}  type:{n['scale']:.0%}  {target.stat().st_size // 1024}kB")
+              f"ground:{n['scheme']}{series}  type:{n['scale']:.0%}  "
+              f"{target.stat().st_size // 1024}kB")
     return 0
 
 

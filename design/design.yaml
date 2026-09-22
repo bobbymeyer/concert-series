@@ -120,6 +120,9 @@ palette:
     dark: "#000000"   # type on a light ground
     light: "#FFFFFF"  # type on a dark ground
   switch_at: auto     # auto = whichever ink has more contrast; or a luminance 0..1
+  assign: series      # unpinned flyers take the next ground in rotation, so a
+                      # run of them spreads across the palette; `independent`
+                      # hashes each flyer on its own instead, which clumps
   tint: 0.72          # how far the `tint` role sits from the ground toward the ink
   colors:
     bone: "#EFE7DA"

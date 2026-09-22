@@ -96,12 +96,21 @@ class Flyer:
             if isinstance(self.data.get(key), dict)
         }
 
-    def _content_file(self):
+    @staticmethod
+    def _content_file_in(folder):
         for name in ("flyer.yaml", "flyer.yml", "content.yaml", "content.yml"):
-            candidate = self.folder / name
+            candidate = Path(folder) / name
             if candidate.exists():
                 return candidate
-        raise ConfigError(f"{self.folder}: no flyer.yaml")
+        raise ConfigError(f"{folder}: no flyer.yaml")
+
+    def _content_file(self):
+        return self._content_file_in(self.folder)
+
+    @property
+    def series(self):
+        """The flyers this one is published alongside."""
+        return series(self.folder.parent)
 
     def _find_image(self):
         declared = self.data.get("image")
@@ -153,3 +162,29 @@ def discover(content_root):
         p for p in root.iterdir()
         if p.is_dir() and any((p / n).exists() for n in ("flyer.yaml", "flyer.yml"))
     )
+
+
+_SERIES = {}
+
+
+def series(content_root):
+    """The run of flyers in a content folder, as (slug, pinned scheme) pairs.
+
+    A flyer's ground colour can depend on where it falls in the series, so the
+    siblings are read once per run. The cache is keyed on the folder's contents
+    and their timestamps, so an edit mid-run is still picked up.
+    """
+    folders = discover(content_root)
+    key = (str(Path(content_root).resolve()),
+           tuple((f.name, f.stat().st_mtime_ns) for f in folders))
+    if key not in _SERIES:
+        rows = []
+        for folder in folders:
+            try:
+                data = load_yaml(Flyer._content_file_in(folder))
+            except (ConfigError, OSError, yaml.YAMLError):
+                data = {}
+            pinned = data.get("scheme")
+            rows.append((folder.name, pinned if isinstance(pinned, str) else None))
+        _SERIES[key] = rows
+    return _SERIES[key]

@@ -328,6 +328,24 @@ def flow_grid(blocks, box, anchor, free_align, flow, options=None):
 # the plan
 # --------------------------------------------------------------------------
 
+def series_scheme(flyer, schemes):
+    """The ground a flyer takes from its place in the series.
+
+    Hashing each flyer independently clumps -- six flyers routinely draw the
+    same ground three times -- so an unpinned flyer instead takes the next
+    ground in rotation, skipping any a sibling has pinned for itself. Adding a
+    flyer to the middle of a series therefore re-colours the ones after it,
+    which is the trade for an even spread; `palette.assign: independent` goes
+    back to hashing.
+    """
+    rows = flyer.series
+    taken = {name for _, name in rows if name}
+    pool = [s for s in schemes if s.name not in taken] or list(schemes)
+    unpinned = [slug for slug, name in rows if not name]
+    index = unpinned.index(flyer.slug) if flyer.slug in unpinned else 0
+    return pool[index % len(pool)], index
+
+
 def _scheme_options(palette):
     """The palette-wide settings every ground is built with."""
     inks = palette.get("ink")
@@ -345,8 +363,12 @@ def plan(flyer, href_for_image):
 
     # 1. the monochrome ground ----------------------------------------------
     schemes = schemes_from(design.palette)
+    assign = str(design.palette.get("assign", "series")).lower()
     wanted = flyer.data.get("scheme")
-    if wanted is None:
+    position = None
+    if wanted is None and assign == "series":
+        scheme, position = series_scheme(flyer, schemes)
+    elif wanted is None:
         scheme = choose.pick("scheme", None, schemes)
     elif isinstance(wanted, int):
         scheme = schemes[wanted % len(schemes)]
@@ -434,6 +456,7 @@ def plan(flyer, href_for_image):
         "image_cell": cell_slot, "h_align": h_align, "v_align": v_align,
         "text_anchor": anchor, "free_align": free_align,
         "scheme": scheme.name or background, "ground": background, "ink": scheme.ink,
+        "series": "-" if position is None else f"{position + 1}/{len(schemes)}",
         "blend": blend, "ramp": [shadow, highlight],
         "box": [round(v, 2) for v in (box.x, box.y, box.w, box.h)],
     })
