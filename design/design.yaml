@@ -25,9 +25,10 @@ image:
   v_align: random     # start | middle | end  (top/center/bottom) | random
   embed: true         # inline the photo as a data URI
   treatment:
-    desaturate: 1.0   # 1.0 = fully grey before the duotone ramp
-    shadow: auto      # auto = the scheme's darker colour; "#000000" = a literal multiply
-    highlight: auto   # auto = the scheme's lighter colour
+    desaturate: 1.0   # 1.0 = fully grey before the ramp
+    blend: auto       # auto = multiply on a light ground, screen on a dark one
+    shadow: auto      # the ramp's dark end; auto follows the blend
+    highlight: auto   # the ramp's light end; auto follows the blend
 
 fonts:
   dir: fonts
@@ -74,7 +75,7 @@ typography:
       size: 19
       weight: 500
       leading: 1.15
-      color: accent
+      color: tint     # ink held back toward the ground
       space_after: 2
     time:
       size: 19
@@ -100,30 +101,18 @@ formats:
   time: "%-I:%M %p"
 
 palette:
-  ink: "#17181A"      # the neutrals used when a scheme names no ink
-  paper: "#FBF7F0"
-  schemes:
-    - name: bone
-      background: "#EFE7DA"
-      ink: "#17181A"
-      accent: "#C8452D"
-    - name: dusk
-      background: "#17293B"
-      ink: "#F0E6D6"
-      accent: "#E9A13B"
-    - name: acid
-      background: "#DCE84B"
-      ink: "#17181A"
-      accent: "#2B3AAE"
-    - name: clay
-      background: "#C9563C"
-      ink: "#FBF1E2"
-      accent: "#17293B"
-    - name: mint
-      background: "#CFE3D4"
-      ink: "#16322A"
-      accent: "#B4462E"
-    - name: night
-      background: "#1A1A1A"
-      ink: "#F2F2F0"
-      accent: "#F2C14E"
+  # Monochrome: one ground colour per flyer. The ink is whichever of these two
+  # reads on it, and the photo ramps between the ground and that same ink --
+  # a multiply on a light ground, a screen on a dark one.
+  ink:
+    dark: "#000000"   # type on a light ground
+    light: "#FFFFFF"  # type on a dark ground
+  switch_at: auto     # auto = whichever ink has more contrast; or a luminance 0..1
+  tint: 0.72          # how far the `tint` role sits from the ground toward the ink
+  colors:
+    bone: "#EFE7DA"
+    acid: "#DCE84B"
+    mint: "#CFE3D4"
+    clay: "#A63D26"
+    dusk: "#17293B"
+    night: "#1A1A1A"

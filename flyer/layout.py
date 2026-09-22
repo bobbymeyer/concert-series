@@ -39,6 +39,7 @@ class ImagePlacement:
     desaturate: float = 1.0
     shadow: str = "#000000"
     highlight: str = "#FFFFFF"
+    blend: str = "multiply"
 
 
 @dataclass
@@ -353,13 +354,22 @@ def flow_row(blocks, box, anchor, free_align, options=None):
 # the plan
 # --------------------------------------------------------------------------
 
+def _scheme_options(palette):
+    """The palette-wide settings every ground is built with."""
+    inks = palette.get("ink")
+    if isinstance(inks, str):
+        inks = {"dark": inks}
+    return {"inks": inks or {}, "tint": palette.get("tint", 0.72),
+            "switch_at": palette.get("switch_at", "auto")}
+
+
 def plan(flyer, href_for_image):
     """Resolve every slot and lay the flyer out. ``href_for_image`` supplies the
     image reference (data URI or path) so this module stays I/O free."""
     design = Design(flyer.design.root, deep_merge(flyer.design.data, flyer.overrides))
     choose = Chooser(flyer.data.get("seed", flyer.slug))
 
-    # 1. the duotone scheme -------------------------------------------------
+    # 1. the monochrome ground ----------------------------------------------
     schemes = schemes_from(design.palette)
     wanted = flyer.data.get("scheme")
     if wanted is None:
@@ -367,7 +377,7 @@ def plan(flyer, href_for_image):
     elif isinstance(wanted, int):
         scheme = schemes[wanted % len(schemes)]
     elif isinstance(wanted, dict):
-        scheme = Scheme(wanted, design.palette)
+        scheme = Scheme(wanted["color"], **_scheme_options(design.palette))
     else:
         named = {s.name: s for s in schemes if s.name}
         if str(wanted) not in named:
@@ -375,11 +385,10 @@ def plan(flyer, href_for_image):
                 f"scheme {wanted!r} is not in the palette "
                 f"(have: {', '.join(sorted(named)) or 'none named'})")
         scheme = named[str(wanted)]
-    # A flyer can still override either half of the scheme outright.
-    if flyer.data.get("background") or flyer.data.get("ink"):
-        scheme = Scheme({**scheme.data,
-                         "background": flyer.data.get("background", scheme.background),
-                         "ink": flyer.data.get("ink", scheme.ink)}, design.palette)
+    # A flyer can also just name its own colour.
+    override = flyer.data.get("color") or flyer.data.get("background")
+    if override:
+        scheme = Scheme(override, **_scheme_options(design.palette))
     background = scheme.background
 
     # 2. the grid: bisect across the image's short axis ---------------------
@@ -408,7 +417,7 @@ def plan(flyer, href_for_image):
     h_align = choose.pick_align("image.h_align", image_cfg.get("h_align"))
     v_align = choose.pick_align("image.v_align", image_cfg.get("v_align"))
     treatment = image_cfg.get("treatment", {}) or {}
-    shadow, highlight = scheme.duotone(treatment)
+    shadow, highlight, blend = scheme.ramp(treatment)
     image = ImagePlacement(
         rect=image_cell,
         href=href_for_image,
@@ -417,6 +426,7 @@ def plan(flyer, href_for_image):
         desaturate=float(treatment.get("desaturate", 1.0)),
         shadow=shadow,
         highlight=highlight,
+        blend=blend,
     )
 
     # 5. the text box: page margin outside, gutter against the photo --------
@@ -449,8 +459,8 @@ def plan(flyer, href_for_image):
         "split": split, "flow": flow, "orientation": flyer.orientation,
         "image_cell": cell_slot, "h_align": h_align, "v_align": v_align,
         "text_anchor": anchor, "free_align": free_align,
-        "scheme": scheme.name or background, "background": background, "ink": scheme.ink,
-        "duotone": [shadow, highlight],
+        "scheme": scheme.name or background, "ground": background, "ink": scheme.ink,
+        "blend": blend, "ramp": [shadow, highlight],
         "box": [round(v, 2) for v in (box.x, box.y, box.w, box.h)],
     })
     return Plan(width=page.w, height=page.h, background=background,

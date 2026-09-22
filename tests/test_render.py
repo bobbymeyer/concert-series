@@ -59,20 +59,39 @@ class TestRender(unittest.TestCase):
             self.assertEqual(root.find(f".//{SVG}image").get("href"), "photo.png")
             self.assertNotIn("@font-face", text)
 
-    def test_duotone_filter_ramps_between_the_two_colours(self):
+    def ends(self, root):
+        """The (shadow, highlight) each channel of the tone filter ramps between."""
+        low, high = [], []
+        for channel in "RGB":
+            func = root.find(f".//{SVG}feFunc{channel}")
+            low.append(float(func.get("intercept")))
+            high.append(low[-1] + float(func.get("slope")))
+        return low, high
+
+    def test_photo_is_desaturated_before_the_ramp(self):
         with Fixture({"scheme": "dusk"}, size=(60, 90)) as flyer:
             root, _, _ = self.svg(flyer)
             matrix = root.find(f".//{SVG}feColorMatrix")
             self.assertEqual(matrix.get("type"), "saturate")
             self.assertEqual(matrix.get("values"), "1")
-            # dusk: #17293B -> #F0E6D6, so red runs 0.09 .. 0.94
-            red = root.find(f".//{SVG}feFuncR")
-            self.assertAlmostEqual(float(red.get("intercept")), 0x17 / 255, places=3)
-            self.assertAlmostEqual(
-                float(red.get("intercept")) + float(red.get("slope")),
-                0xF0 / 255, places=3)
             self.assertEqual(
                 root.find(f".//{SVG}filter").get("color-interpolation-filters"), "sRGB")
+
+    def test_dark_ground_screens_the_photo_up_to_white(self):
+        with Fixture({"scheme": "dusk"}, size=(60, 90)) as flyer:
+            low, high = self.ends(self.svg(flyer)[0])
+            for value, channel in zip(low, (0x17, 0x29, 0x3B)):
+                self.assertAlmostEqual(value, channel / 255, places=3)
+            for value in high:
+                self.assertAlmostEqual(value, 1.0, places=3)
+
+    def test_light_ground_multiplies_the_photo_down_to_black(self):
+        with Fixture({"scheme": "bone"}, size=(60, 90)) as flyer:
+            low, high = self.ends(self.svg(flyer)[0])
+            for value in low:
+                self.assertAlmostEqual(value, 0.0, places=3)
+            for value, channel in zip(high, (0xEF, 0xE7, 0xDA)):
+                self.assertAlmostEqual(value, channel / 255, places=3)
 
     def test_image_is_clipped_to_its_cell(self):
         with Fixture(size=(60, 90)) as flyer:

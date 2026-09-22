@@ -208,24 +208,41 @@ class TestSchemes(unittest.TestCase):
             with self.assertRaisesRegex(LayoutError, "chartreuse"):
                 plan(flyer, "p.png")
 
-    def test_background_override(self):
-        with Fixture({"background": "#123456"}) as flyer:
+    def test_background_is_an_alias_for_colour(self):
+        with Fixture({"background": "#EFE7DA"}) as flyer:
             page = plan(flyer, "p.png")
-            self.assertEqual(page.background, "#123456")
+            self.assertEqual(page.background, "#EFE7DA")
+            self.assertEqual(page.notes["ink"], "#000000")
 
-    def test_duotone_ends_match_the_scheme(self):
+    def test_a_dark_ground_screens_up_to_white(self):
         with Fixture({"scheme": "dusk"}) as flyer:
             page = plan(flyer, "p.png")
+            self.assertEqual(page.image.blend, "screen")
             self.assertEqual([page.image.shadow, page.image.highlight],
-                             ["#17293B", "#F0E6D6"])
+                             ["#17293B", "#FFFFFF"])
+            self.assertEqual(page.notes["ink"], "#FFFFFF")
 
-    def test_literal_multiply_treatment(self):
-        with Fixture({"scheme": "bone",
-                      "image": {"treatment": {"shadow": "#000000",
-                                              "highlight": "background"}}}) as flyer:
+    def test_a_light_ground_multiplies_down_to_black(self):
+        with Fixture({"scheme": "bone"}) as flyer:
             page = plan(flyer, "p.png")
-            self.assertEqual(page.image.shadow, "#000000")
-            self.assertEqual(page.image.highlight, "#EFE7DA")
+            self.assertEqual(page.image.blend, "multiply")
+            self.assertEqual([page.image.shadow, page.image.highlight],
+                             ["#000000", "#EFE7DA"])
+            self.assertEqual(page.notes["ink"], "#000000")
+
+    def test_the_blend_can_be_forced(self):
+        with Fixture({"scheme": "bone",
+                      "image": {"treatment": {"blend": "screen"}}}) as flyer:
+            page = plan(flyer, "p.png")
+            self.assertEqual(page.image.blend, "screen")
+            self.assertEqual([page.image.shadow, page.image.highlight],
+                             ["#EFE7DA", "#FFFFFF"])
+
+    def test_a_flyer_can_name_its_own_colour(self):
+        with Fixture({"color": "#123456"}) as flyer:
+            page = plan(flyer, "p.png")
+            self.assertEqual(page.background, "#123456")
+            self.assertEqual(page.image.blend, "screen")
 
 
 if __name__ == "__main__":

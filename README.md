@@ -31,14 +31,17 @@ right aligned; photo on top, the text sits up against it, and so on.
 so the fields stack in a column. A horizontal split gives a wide, short band, so
 they run across it in a row, wrapping onto further rows as they fill the width.
 
-**The colour** is a duotone: a background and an ink, drawn from the palette.
-The photo is desaturated and ramped between the two, which is the multiply
-blend of that photo over the flat background — so the photo's shadows meet the
-background seamlessly and the whole page is two colours.
+**The colour** is monochrome: one ground colour per flyer, drawn from the
+palette. The type is pure ink — black on a light ground, white on a dark one,
+whichever reads — and the photo is desaturated and ramped between the ground
+and that same ink. On a light ground that ramp runs black up to the ground,
+which is a multiply; on a dark ground it runs the ground up to white, which is
+a screen. One decision, taken from the ground's luminance, sets both the type
+colour and which way the photo goes, so a dark ground never swallows the photo.
 
 ## Slots, and why the output is stable
 
-Anything you do not specify is a *slot*: the scheme, which cell holds the photo,
+Anything you do not specify is a *slot*: the ground colour, which cell holds the photo,
 the crop anchors, and where the text block sits along its free axis. An unset
 slot is not random per run — it is derived from the flyer's folder name, so the
 same content always produces the same flyer, and two flyers in the same series
@@ -46,6 +49,8 @@ get different ones. Each slot draws from its own stream, so pinning one never
 shifts another.
 
 ```yaml
+scheme: dusk        # a ground by name, from the palette
+color: "#A63D26"    # or just give one
 image:
   cell: left        # pin it
   v_align: random   # or say random explicitly; omitting it means the same
@@ -84,16 +89,24 @@ one flyer in the series break the rules without forking the design.
 ## The design
 
 `design/design.yaml` holds everything shared: page size, margins, the palette of
-duotone schemes, the type scale, and the date formats. It is commented
-throughout. Two things are worth knowing:
+grounds, the type scale, and the date formats. It is commented throughout.
+Three things are worth knowing:
 
 - **`space_after` is optical.** It is the gap left below a block's descenders,
   before the next block's cap line — not a line height. Blocks are boxed from
   cap line to last baseline, so text flush to the top of the text area starts at
   its cap line and text flush to the bottom sits on its baseline.
-- **The duotone ends default to the scheme's own two colours**, darker end
-  first, which keeps the photo legible on light and dark backgrounds alike. For
-  a literal multiply, set `image.treatment.shadow: "#000000"`.
+- **The ink is derived, not chosen.** `palette.ink.dark` and `palette.ink.light`
+  are the only two type colours; a ground takes whichever contrasts more.
+  `palette.switch_at` overrides that crossover with a luminance if you want the
+  swap to happen sooner or later.
+- **The blend follows the ink.** `image.treatment.blend` is `auto` by default —
+  multiply on a light ground, screen on a dark one — and can be forced either
+  way per flyer, as can each end of the ramp.
+- **Hierarchy is weight, size and tint**, not a second hue. A field's `color:`
+  can be `ink`, `ground`, `tint` (ink held back toward the ground by
+  `palette.tint`) or a literal hex. Anything else is an error, which is what
+  keeps the design monochrome.
 
 ## Output
 
@@ -104,9 +117,12 @@ ten years — nothing is fetched and nothing needs installing. Each line of type
 carries its measured width as `textLength`, so a renderer that substitutes a
 font still lays the page out correctly.
 
-The duotone is an SVG filter (`feColorMatrix` + `feComponentTransfer`) rather
-than a CSS blend mode, for the same reason: filters are SVG 1.1 and render
-everywhere.
+The tone is an SVG filter (`feColorMatrix` + `feComponentTransfer`) rather than
+a CSS blend mode, for the same reason: filters are SVG 1.1 and render
+everywhere. Multiplying a fully desaturated photo over a flat ground is exactly
+a linear ramp from black to that ground, and screening it is exactly a ramp
+from the ground to white — so the filter computes the blend rather than asking
+the renderer to composite it.
 
 Build with `--no-embed` to reference the photo and fonts instead, which keeps
 the SVG small while you are iterating.
@@ -118,14 +134,14 @@ python3 -m flyer build [slug ...]   # render to out/ (the default command)
 python3 -m flyer list               # content folders and their photos
 python3 -m flyer inspect [slug]     # the resolved slots and every baseline
 python3 -m flyer sheet              # out/index.html, a contact sheet
-make test                           # 59 tests, standard library only
+make test                           # 68 tests, standard library only
 ```
 
 `build` prints what each flyer resolved to:
 
 ```
 out/cardinal-wax.svg  portrait/vertical photo:start middle/end  column flow
-                      scheme:mint  type:100%  905kB
+                      scheme:dusk  type:100%  905kB
 ```
 
 `type:100%` means nothing had to be shrunk to fit. A headline too wide for the
@@ -154,7 +170,7 @@ content/<slug>/        one folder per flyer: yaml + photo
 flyer/                 the generator
   config.py            loading and merging yaml
   slots.py             deterministic slot resolution
-  color.py             duotone schemes and contrast
+  color.py             monochrome grounds, ink and contrast
   fontmetrics.py       a minimal TrueType reader, for exact measurement
   imageinfo.py         image dimensions without a library
   layout.py            grid, image placement, both flows

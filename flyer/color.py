@@ -1,14 +1,19 @@
-"""Duotone schemes: every flyer is set in two colours plus an optional accent.
+"""Monochrome grounds.
 
-A style names a role (``ink``, ``paper``, ``accent``) rather than a colour, so
-the same typography works in any scheme. The photo is desaturated and ramped
-between the scheme's shadow and highlight, which is exactly a multiply blend
-over the flat background (see ``duotone`` below).
+Each flyer is set in one colour. The type is pure ink — black on a light
+ground, white on a dark one — and the photo is desaturated and ramped between
+the ground and that same ink. On a light ground that ramp runs black to the
+ground, which is a multiply; on a dark ground it runs the ground to white,
+which is a screen. One decision, made from the ground's luminance, drives both
+the type colour and which way the photo goes.
 """
 
 import re
 
 _HEX = re.compile(r"^#?([0-9a-f]{3}|[0-9a-f]{6})$", re.I)
+
+WHITE = "#FFFFFF"
+BLACK = "#000000"
 
 
 def parse(value):
@@ -28,7 +33,13 @@ def is_color(value):
 
 def normalize(value):
     value = str(value).strip()
-    return value if value.startswith("#") else f"#{value}"
+    return (value if value.startswith("#") else f"#{value}").upper()
+
+
+def mix(a, b, ratio):
+    """``ratio`` of colour ``a`` over colour ``b``."""
+    channels = (x * ratio + y * (1 - ratio) for x, y in zip(parse(a), parse(b)))
+    return "#" + "".join(f"{round(c * 255):02X}" for c in channels)
 
 
 def luminance(value):
@@ -46,25 +57,33 @@ def contrast(a, b):
 
 
 class Scheme:
-    """One duotone: a background, an ink, and what the photo ramps between."""
+    """One ground colour, and everything derived from it."""
 
-    def __init__(self, data, palette=None):
-        palette = palette or {}
-        self.data = dict(data or {})
-        self.name = self.data.get("name")
-        self.background = normalize(self.data["background"])
-        ink = self.data.get("ink")
-        if ink is None:
-            # No ink given: use whichever of the palette's two neutrals reads.
-            candidates = [palette.get("ink", "#111111"), palette.get("paper", "#FFFFFF")]
-            ink = max(candidates, key=lambda c: contrast(c, self.background))
-        self.ink = normalize(ink)
-        self.accent = self.data.get("accent")
-        self.extras = {k: v for k, v in palette.items()
-                       if k not in ("schemes", "backgrounds") and is_color(str(v))}
+    def __init__(self, color, name=None, inks=None, tint=0.72, switch_at="auto"):
+        inks = inks or {}
+        self.name = name
+        self.background = normalize(color)
+        self.light_ink = normalize(inks.get("light", WHITE))
+        self.dark_ink = normalize(inks.get("dark", BLACK))
+        self.tint_ratio = float(tint)
+        self.is_dark = self._too_dark(switch_at)
+        self.ink = self.light_ink if self.is_dark else self.dark_ink
+        self.blend = "screen" if self.is_dark else "multiply"
 
-    def resolve(self, role, minimum=2.5):
-        """Resolve a role name or literal hex into a colour that stays readable."""
+    def _too_dark(self, switch_at):
+        """Whether the ground needs white type — and so a screen, not a multiply."""
+        if switch_at in (None, "", "auto"):
+            return (contrast(self.background, self.light_ink)
+                    > contrast(self.background, self.dark_ink))
+        return luminance(self.background) < float(switch_at)
+
+    @property
+    def tint(self):
+        """Ink held back toward the ground, for a second level of hierarchy."""
+        return mix(self.ink, self.background, self.tint_ratio)
+
+    def resolve(self, role):
+        """Resolve a role name or literal hex. The roles are the whole palette."""
         if role is None:
             return self.ink
         if is_color(role):
@@ -72,46 +91,54 @@ class Scheme:
         key = str(role).strip().lower()
         if key in ("ink", "text", "auto"):
             return self.ink
-        if key in ("background", "paper", "bg"):
+        if key in ("ground", "background", "bg", "paper"):
             return self.background
-        value = self.accent if key == "accent" else None
-        value = self.extras.get(key) if value is None else value
-        if value is None:
-            if key == "accent":
-                return self.ink          # a scheme without an accent just uses ink
-            raise ValueError(f"no colour named {key!r} in the scheme or palette")
-        value = normalize(value)
-        # An accent that disappears into the background falls back to ink.
-        return value if contrast(value, self.background) >= minimum else self.ink
+        if key in ("tint", "accent", "muted"):
+            return self.tint
+        raise ValueError(
+            f"{role!r} is not a colour: a monochrome design has ink, ground "
+            f"and tint (or give a hex)")
 
-    def duotone(self, settings=None):
-        """Shadow/highlight ends of the photo ramp.
+    def ramp(self, settings=None):
+        """(shadow, highlight, blend) for the photo.
 
-        By default the photo ramps between the scheme's own two colours, dark
-        end first, so it stays legible on light and dark backgrounds alike. On
-        a light scheme that is the multiply blend of the desaturated photo over
-        the background, tinted into the ink; ``shadow: "#000000"`` makes it a
-        literal multiply, and either end can be set to any role or hex.
+        A multiply runs the dark ink up to the ground; a screen runs the ground
+        up to the light ink. Either end can be overridden, and ``blend`` can be
+        forced rather than taken from the ground's luminance.
         """
         settings = settings or {}
-        dark, light = sorted((self.ink, self.background), key=luminance)
-        shadow = settings.get("shadow")
-        highlight = settings.get("highlight")
-        shadow = dark if shadow in (None, "auto") else self.resolve(shadow, minimum=0)
-        highlight = light if highlight in (None, "auto") else self.resolve(highlight, minimum=0)
-        return shadow, highlight
+        blend = settings.get("blend") or "auto"
+        blend = self.blend if str(blend).lower() == "auto" else str(blend).lower()
+        if blend == "multiply":
+            shadow, highlight = self.dark_ink, self.background
+        elif blend == "screen":
+            shadow, highlight = self.background, self.light_ink
+        else:
+            raise ValueError(f"image.treatment.blend: expected multiply/screen/auto, "
+                             f"got {blend!r}")
+        if settings.get("shadow", "auto") != "auto":
+            shadow = self.resolve(settings["shadow"])
+        if settings.get("highlight", "auto") != "auto":
+            highlight = self.resolve(settings["highlight"])
+        return shadow, highlight, blend
 
 
 def schemes_from(palette):
-    """Normalise ``palette`` into a list of schemes.
-
-    Accepts an explicit ``schemes:`` list, or the ``backgrounds:`` shorthand
-    where the ink is chosen for contrast.
-    """
+    """Normalise a palette into its list of monochrome grounds."""
     palette = palette or {}
-    listed = palette.get("schemes")
-    if listed:
-        return [Scheme(s, palette) for s in listed]
-    backgrounds = palette.get("backgrounds") or [palette.get("paper", "#FFFFFF")]
-    return [Scheme({"background": bg, "accent": palette.get("accent")}, palette)
-            for bg in backgrounds]
+    inks = palette.get("ink")
+    if isinstance(inks, str):
+        inks = {"dark": inks}
+    common = {
+        "inks": inks or {},
+        "tint": palette.get("tint", 0.72),
+        "switch_at": palette.get("switch_at", "auto"),
+    }
+    colors = palette.get("colors") or [WHITE]
+    items = colors.items() if isinstance(colors, dict) else [(None, c) for c in colors]
+    schemes = []
+    for name, value in items:
+        if isinstance(value, dict):
+            name, value = value.get("name", name), value["color"]
+        schemes.append(Scheme(value, name=name, **common))
+    return schemes

@@ -1,7 +1,7 @@
 """SVG emission.
 
 The output is a single self-contained SVG 1.1 file: the photo and the fonts are
-embedded as data URIs, and the duotone is a filter rather than a blend mode, so
+embedded as data URIs, and the photo's tone is a filter rather than a blend mode, so
 the flyer renders identically in a browser, in Inkscape, in rsvg and at a print
 shop. Nothing in the file depends on this tool being installed.
 """
@@ -45,11 +45,13 @@ def font_face_css(design, weights, family):
     return "\n".join(rules)
 
 
-def duotone_filter(image, filter_id="duotone"):
+def tone_filter(image, filter_id="tone"):
     """Desaturate, then ramp each channel from the shadow to the highlight.
 
-    For a fully desaturated photo this is the multiply of that photo over the
-    flat background, which is what makes the result a true two-colour image.
+    For a fully desaturated photo, a ramp from black to the ground is exactly
+    that photo multiplied over the ground, and a ramp from the ground to white
+    is exactly that photo screened over it -- computed rather than blended, so
+    it needs no compositing support from the renderer.
     """
     shadow, highlight = parse(image.shadow), parse(image.highlight)
     funcs = "".join(
@@ -84,7 +86,7 @@ def render(flyer, embed_images=None, embed_fonts=None):
     font_stack = f"'{family}', {stack}"
     use_textlength = bool(type_cfg.get("text_length", True))
 
-    defs = [duotone_filter(page.image)]
+    defs = [tone_filter(page.image)]
     if embed_fonts:
         weights = {line.weight for line in page.lines}
         defs.insert(0, f"<style>\n{font_face_css(design, weights, family)}\n</style>")
@@ -100,7 +102,7 @@ def render(flyer, embed_images=None, embed_fonts=None):
         f'<image x="{fmt(page.image.rect.x)}" y="{fmt(page.image.rect.y)}" '
         f'width="{fmt(page.image.rect.w)}" height="{fmt(page.image.rect.h)}" '
         f'preserveAspectRatio="{page.image.preserve_aspect_ratio}" '
-        f'clip-path="url(#photo)" filter="url(#duotone)" '
+        f'clip-path="url(#photo)" filter="url(#tone)" '
         f'href="{escape(page.image.href)}"/>',
     ]
 
