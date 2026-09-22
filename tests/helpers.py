@@ -14,6 +14,7 @@ DESIGN = ROOT / "design" / "design.yaml"
 BASE = {
     "performer": "Cardinal Wax",
     "venue": "The Bell House",
+    "address": "149 Seventh Street, Brooklyn",
     "date": "Saturday, October 3",
     "time": "8:00 PM",
     "cost": "$22 advance / $25 door",

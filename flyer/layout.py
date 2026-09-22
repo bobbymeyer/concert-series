@@ -158,32 +158,51 @@ class Block:
         return -self.font.em("descent") * self.px(scale) + self.space_after * scale
 
 
-def build_blocks(design, data, scheme):
-    blocks = []
-    formats = design.formats
-    for name in design.order:
-        value = data.get(name)
-        if value is None or (isinstance(value, (str, list, tuple)) and len(value) == 0):
-            continue
-        style = design.field_style(name)
-        text = apply_case(format_value(name, value, formats), style.get("case"))
-        weight = int(style.get("weight", 400))
-        blocks.append(Block(
-            name=name,
-            text=text,
-            size=float(style.get("size", 12)),
-            weight=weight,
-            leading=float(style.get("leading", 1.2)),
-            tracking=float(style.get("tracking", 0.0)),
-            color=scheme.resolve(style.get("color")),
-            space_after=float(style.get("space_after", 12)),
-            span=style.get("span", 1),
-            fit=bool(style.get("fit", True)),
-            font=fontmetrics.load(design.font_file(weight)),
-        ))
-    if not blocks:
+def build_block(design, data, scheme, name):
+    """One field, or None when the flyer does not carry it."""
+    value = data.get(name)
+    if value is None or (isinstance(value, (str, list, tuple)) and len(value) == 0):
+        return None
+    style = design.field_style(name)
+    text = apply_case(format_value(name, value, design.formats), style.get("case"))
+    weight = int(style.get("weight", 400))
+    return Block(
+        name=name,
+        text=text,
+        size=float(style.get("size", 12)),
+        weight=weight,
+        leading=float(style.get("leading", 1.2)),
+        tracking=float(style.get("tracking", 0.0)),
+        color=scheme.resolve(style.get("color")),
+        space_after=float(style.get("space_after", 12)),
+        span=style.get("span", 1),
+        fit=bool(style.get("fit", True)),
+        font=fontmetrics.load(design.font_file(weight)),
+    )
+
+
+def build_cells(design, data, scheme):
+    """The grid's cells, in order.
+
+    An entry in ``typography.order`` is either a field name or a list of them.
+    A list stacks those fields into one cell, which is how the address sits
+    under the venue and the time under the date, in one column of the grid.
+    """
+    cells = []
+    for entry in design.order:
+        names = [entry] if isinstance(entry, str) else list(entry)
+        blocks = [b for b in (build_block(design, data, scheme, n) for n in names) if b]
+        if blocks:
+            cells.append(blocks)
+    if not cells:
         raise LayoutError("no content fields to set; expected performer/venue/date/...")
-    return blocks
+    return cells
+
+
+def cell_height(blocks, scale):
+    """A stacked cell, from its first cap line to its last baseline."""
+    return (sum(b.height(scale) for b in blocks)
+            + sum(b.gap_after(scale) for b in blocks[:-1]))
 
 
 # --------------------------------------------------------------------------
@@ -218,7 +237,7 @@ def resolve_span(value, columns):
     return max(1, min(int(value), columns))
 
 
-def flow_grid(blocks, box, anchor, free_align, flow, options=None):
+def flow_grid(cells, box, anchor, free_align, flow, options=None):
     """Lay the fields out on a column grid inside the text box.
 
     One grid serves both flows: a column flow is a single column, so the fields
@@ -250,15 +269,16 @@ def flow_grid(blocks, box, anchor, free_align, flow, options=None):
     def place(scale):
         """Fill the grid left to right, breaking to a new row when it is full."""
         rows, row, cursor = [], [], 0
-        for block in blocks:
-            span = resolve_span(block.span, columns)
+        for blocks in cells:
+            span = max(resolve_span(b.span, columns) for b in blocks)
             if row and cursor + span > columns:
                 rows.append(row)
                 row, cursor = [], 0
             width = span * column_width + (span - 1) * gutter
-            block.fit_width(width, scale)
-            block.wrap(width, scale)
-            row.append((block, cursor * (column_width + gutter), width))
+            for block in blocks:
+                block.fit_width(width, scale)
+                block.wrap(width, scale)
+            row.append((blocks, cursor * (column_width + gutter), width))
             cursor += span
             if cursor >= columns:
                 rows.append(row)
@@ -268,11 +288,11 @@ def flow_grid(blocks, box, anchor, free_align, flow, options=None):
         return rows
 
     def gap_below(row, scale):
-        return max([b.gap_after(scale) for b, _, _ in row] + [row_gap * scale])
+        return max([bs[-1].gap_after(scale) for bs, _, _ in row] + [row_gap * scale])
 
     def height_of(rows, scale):
-        """Row heights, with the spacing the blocks in each row ask for."""
-        total = sum(max(b.height(scale) for b, _, _ in row) for row in rows)
+        """Row heights, with the spacing the cells in each row ask for."""
+        total = sum(max(cell_height(bs, scale) for bs, _, _ in row) for row in rows)
         return total + sum(gap_below(row, scale) for row in rows[:-1])
 
     # Each cell fits its column on its own; the global scale only resolves a
@@ -290,27 +310,31 @@ def flow_grid(blocks, box, anchor, free_align, flow, options=None):
     elif slot == "end":
         y += box.h - height
 
+    # In a column flow the cells are aligned against the photo too.
+    cell_anchor = anchor if flow == "column" else "start"
     lines = []
     for i, row in enumerate(rows):
-        row_height = max(b.height(scale) for b, _, _ in row)
-        for block, offset, width in row:
-            size = block.px(scale)
-            slack = row_height - block.height(scale)
+        row_height = max(cell_height(bs, scale) for bs, _, _ in row)
+        for blocks, offset, width in row:
+            slack = row_height - cell_height(blocks, scale)
             top = y + (slack if row_align == "end"
                        else slack / 2 if row_align == "middle" else 0.0)
-            baseline = top + block.font.em("cap_height") * size
-            # In a column flow the cells are aligned against the photo too.
-            cell_anchor = anchor if flow == "column" else "start"
             x = box.x + offset + (width if cell_anchor == "end" else 0.0)
-            for text in block.lines:
-                if text:
-                    lines.append(Line(
-                        text=text, x=x, baseline=baseline, anchor=cell_anchor,
-                        size=size, weight=block.weight, color=block.color,
-                        width=block.font.width(text, size, block.tracking),
-                        field=block.name,
-                    ))
-                baseline += block.leading * size
+            for j, block in enumerate(blocks):
+                size = block.px(scale)
+                baseline = top + block.font.em("cap_height") * size
+                for text in block.lines:
+                    if text:
+                        lines.append(Line(
+                            text=text, x=x, baseline=baseline, anchor=cell_anchor,
+                            size=size, weight=block.weight, color=block.color,
+                            width=block.font.width(text, size, block.tracking),
+                            field=block.name,
+                        ))
+                    baseline += block.leading * size
+                top += block.height(scale)
+                if j < len(blocks) - 1:
+                    top += block.gap_after(scale)
         y += row_height
         if i < len(rows) - 1:
             y += gap_below(row, scale)
@@ -319,7 +343,7 @@ def flow_grid(blocks, box, anchor, free_align, flow, options=None):
         "scale": round(scale, 4),
         "columns": columns,
         "column_width": round(column_width, 2),
-        "rows": [[b.name for b, _, _ in row] for row in rows],
+        "rows": [[[b.name for b in bs] for bs, _, _ in row] for row in rows],
         "text_height": round(height, 2),
     }
 
@@ -447,8 +471,8 @@ def plan(flyer, href_for_image):
     free_align = choose.pick_align(
         "text.align", design.data.get("typography", {}).get("align"))
 
-    blocks = build_blocks(design, flyer.data, scheme)
-    lines, notes = flow_grid(blocks, box, anchor, free_align, flow,
+    cells = build_cells(design, flyer.data, scheme)
+    lines, notes = flow_grid(cells, box, anchor, free_align, flow,
                              design.data.get("grid", {}))
 
     notes.update({

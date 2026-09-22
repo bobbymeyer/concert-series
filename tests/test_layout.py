@@ -3,7 +3,7 @@ import unittest
 from flyer.layout import LayoutError, Rect, apply_case, format_value, plan
 from flyer.slots import Chooser, normalize_align
 
-from helpers import Fixture, SeriesFixture
+from helpers import BASE, Fixture, SeriesFixture
 
 EPS = 0.75          # a fraction of a point of rounding slack
 
@@ -11,6 +11,11 @@ EPS = 0.75          # a fraction of a point of rounding slack
 def text_box(page):
     """The text area the plan reports, as a Rect."""
     return Rect(*page.notes["box"])
+
+
+def fields_in(row):
+    """Every field name in a grid row, across its cells."""
+    return [name for cell in row for name in cell]
 
 
 def extents(line):
@@ -169,45 +174,47 @@ class TestTextFits(unittest.TestCase):
         with Fixture(size=(90, 60)) as flyer:
             page = plan(flyer, "p.png")
             self.assertEqual(page.notes["flow"], "row")
-            # Every block in a row ends on the row's baseline, whatever its size.
+            last = {}
+            for line in page.lines:
+                last[line.field] = max(last.get(line.field, 0), line.baseline)
+            # Every cell in a row ends on the row's baseline, whatever it holds.
             for row in page.notes["rows"]:
-                last = {}
-                for line in page.lines:
-                    if line.field in row:
-                        last[line.field] = max(last.get(line.field, 0), line.baseline)
-                self.assertEqual(len(set(round(b, 3) for b in last.values())), 1,
-                                 f"{row} -> {last}")
+                bottoms = {round(last[cell[-1]], 3) for cell in row}
+                self.assertEqual(len(bottoms), 1, f"{row} -> {bottoms}")
             # The rows themselves still differ.
-            self.assertGreater(len({round(line.baseline, 3) for line in page.lines}), 1)
+            self.assertGreater(len({round(l.baseline, 3) for l in page.lines}), 1)
 
     def test_row_align_can_be_moved_to_the_top(self):
-        def pair(row_align):
+        def measure(row_align):
             overrides = {"grid": {"row_align": row_align}} if row_align else {}
             with Fixture(overrides, size=(90, 60)) as flyer:
                 page = plan(flyer, "p.png")
-                row = next(r for r in page.notes["rows"] if "details" in r)
-                self.assertIn("cost", row)             # two blocks, two heights
-                last = {"cost": 0.0, "details": 0.0}
+                row = next(r for r in page.notes["rows"]
+                           if "details" in fields_in(r))
+                self.assertIn("cost", fields_in(row))   # two cells, two heights
+                first, last = {}, {}
                 for line in page.lines:
-                    if line.field in last:
-                        last[line.field] = max(last[line.field], line.baseline)
-                return last["cost"], last["details"]
+                    if line.field in ("cost", "details"):
+                        first.setdefault(line.field, (line.baseline, line.size))
+                        last[line.field] = line.baseline
+                caps = {f: b - 0.7 * size for f, (b, size) in first.items()}
+                return caps, last
 
-        cost, details = pair(None)          # the default: a shared last baseline
-        self.assertAlmostEqual(cost, details, places=3)
-        cost, details = pair("top")         # cap tops align, so the taller
-        self.assertGreater(cost, details)   # block now hangs below the other
+        _, last = measure(None)             # the default: a shared last baseline
+        self.assertAlmostEqual(last["cost"], last["details"], places=3)
+        caps, last = measure("top")         # cap tops align instead
+        self.assertAlmostEqual(caps["cost"], caps["details"], places=2)
+        self.assertNotAlmostEqual(last["cost"], last["details"], places=1)
 
     def test_sparse_content_still_lays_out(self):
-        with Fixture({"venue": None, "cost": None, "details": None},
-                     size=(60, 90)) as flyer:
+        with Fixture({"venue": None, "address": None, "cost": None,
+                      "details": None}, size=(60, 90)) as flyer:
             page = plan(flyer, "p.png")
             self.assertEqual({line.field for line in page.lines},
                              {"performer", "date", "time"})
 
     def test_no_content_is_an_error(self):
-        with Fixture({k: None for k in
-                      ("performer", "venue", "date", "time", "cost", "details")}) as f:
+        with Fixture({k: None for k in BASE}) as f:
             with self.assertRaises(LayoutError):
                 plan(f, "p.png")
 
@@ -221,7 +228,7 @@ class TestGrid2(unittest.TestCase):
                 with Fixture(size=size) as flyer:
                     page = plan(flyer, "p.png")
                     box = text_box(page)
-                    self.assertEqual(page.notes["rows"][0], ["performer"])
+                    self.assertEqual(page.notes["rows"][0], [["performer"]])
                     head = [l for l in page.lines if l.field == "performer"]
                     self.assertTrue(all(l.x == box.x for l in head))
 
@@ -240,22 +247,41 @@ class TestGrid2(unittest.TestCase):
         with Fixture(size=(60, 90)) as flyer:
             page = plan(flyer, "p.png")
             self.assertEqual(page.notes["columns"], 1)
-            self.assertEqual([row[0] for row in page.notes["rows"]],
-                             ["performer", "venue", "date", "time", "cost",
-                              "details"])
+            self.assertEqual(page.notes["rows"],
+                             [[["performer"]], [["venue", "address"]],
+                              [["date", "time"]], [["cost"]], [["details"]]])
 
     def test_a_span_wider_than_the_grid_is_clamped(self):
         with Fixture({"typography": {"fields": {"venue": {"span": 9}}}},
                      size=(90, 60)) as flyer:
             page = plan(flyer, "p.png")
-            self.assertEqual(next(r for r in page.notes["rows"] if "venue" in r),
-                             ["venue"])
+            row = next(r for r in page.notes["rows"] if "venue" in fields_in(r))
+            self.assertEqual(fields_in(row), ["venue", "address"])
 
     def test_the_grid_can_be_widened(self):
         with Fixture({"grid": {"columns": {"row": 6}}}, size=(90, 60)) as flyer:
             page = plan(flyer, "p.png")
             self.assertEqual(page.notes["columns"], 6)
             self.assertLess(page.notes["column_width"], 90)
+
+    def test_stacked_fields_share_one_cell(self):
+        with Fixture(size=(90, 60)) as flyer:
+            page = plan(flyer, "p.png")
+            row = next(r for r in page.notes["rows"] if "venue" in fields_in(r))
+            self.assertEqual(row, [["venue", "address"], ["date", "time"]])
+            at = {l.field: (l.x, l.baseline) for l in page.lines}
+            # Stacked: same column, the second below the first.
+            for top, below in (("venue", "address"), ("date", "time")):
+                self.assertEqual(at[top][0], at[below][0])
+                self.assertGreater(at[below][1], at[top][1])
+            # Side by side: the two cells start on different tracks.
+            self.assertLess(at["venue"][0], at["date"][0])
+
+    def test_a_missing_field_collapses_its_stack(self):
+        with Fixture({"address": None}, size=(90, 60)) as flyer:
+            page = plan(flyer, "p.png")
+            row = next(r for r in page.notes["rows"] if "venue" in fields_in(r))
+            self.assertEqual(row, [["venue"], ["date", "time"]])
 
     def test_too_many_columns_is_reported(self):
         with Fixture({"grid": {"columns": {"column": 40}}}, size=(60, 90)) as f:

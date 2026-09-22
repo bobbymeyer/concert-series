@@ -53,7 +53,14 @@ typography:
   fallback: "'Helvetica Neue', Helvetica, Arial, sans-serif"
   align: random       # where the text block sits along its free axis
   text_length: true   # pin each line to its measured width, for renderer parity
-  order: [performer, venue, date, time, cost, details]
+  # Each entry is one cell of the grid. A list stacks those fields into one
+  # cell, so the address sits under the venue and the time under the date.
+  order:
+    - performer
+    - [venue, address]
+    - [date, time]
+    - cost
+    - details
 
   # space_after is optical: the gap left below a block's descenders, before
   # the next block's cap line. In row flow it is the gap to the next column.
@@ -80,19 +87,26 @@ typography:
       case: upper
       tracking: 0.06
       leading: 1.15
-      space_after: 4
+      space_after: 3
       span: 2         # long venue names still set on one line
+    address:
+      size: 11
+      weight: 400
+      leading: 1.25
+      color: tint
+      space_after: 4
+      span: 2
     date:
       size: 19
       weight: 500
       leading: 1.15
-      color: tint     # ink held back toward the ground
       space_after: 2
       span: 2         # dates are long; give them two columns of the row grid
     time:
       size: 19
       weight: 500
       leading: 1.15
+      color: tint     # the second line of the pair, held back toward the ground
       space_after: 13
     cost:
       size: 12

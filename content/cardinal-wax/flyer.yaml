@@ -3,6 +3,7 @@
 # folder name — stable across runs, different from the next flyer.
 performer: Cardinal Wax
 venue: The Bell House
+address: 149 Seventh Street, Brooklyn
 date: 2026-10-03          # a real date, formatted by design.yaml's formats.date
 time: "8:00 PM"           # quote times: bare 8:00 is a sexagesimal number in yaml
 cost: $22 advance / $25 door

@@ -38,14 +38,19 @@ the headline takes a row to itself and reads as a banner:
 ┌─────────────────────────────────────────────┐
 │ MARTA REYES TRIO                            │  performer, span: all
 ├──────────────────────┬──────────────────────┤
-│ GALLERY 9            │ Saturday, November 14│  venue 2, date 2
-├──────────┬───────────┼──────────────────────┤
-│ 9:30 PM  │ FREE      │ Late set, no opener. │  time 1, cost 1, details 2
-└──────────┴───────────┴──────────────────────┘
+│ GALLERY 9            │ Saturday, November 14│  [venue, address] 2
+│ 9 Ludlow Street      │ 9:30 PM              │  [date, time] 2
+├──────────┬───────────┴──────────────────────┤
+│ FREE     │ Late set, no opener.             │  cost 1, details 2
+└──────────┴──────────────────────────────────┘
 ```
 
-Blocks sharing a grid row sit on a common baseline, so a venue set small reads
-as part of the line the headline ends on rather than floating above it.
+A cell can hold a stack of fields rather than one: `typography.order` takes a
+list where a single field would go, and those fields set one under another in
+the same column. That is how the address sits under the venue and the time
+under the date. Cells sharing a grid row sit on a common baseline — the last
+line of each — so a venue set small reads as part of the line the headline ends
+on rather than floating above it.
 
 **The colour** is monochrome: one ground colour per flyer, drawn from the
 palette. The type is pure ink — black on a light ground, white on a dark one,
@@ -95,6 +100,7 @@ content/
 ```yaml
 performer: Cardinal Wax
 venue: The Bell House
+address: 149 Seventh Street, Brooklyn
 date: 2026-10-03            # a real date, formatted by design.yaml
 time: "8:00 PM"             # quote times: bare 8:00 is a number in yaml
 cost: $22 advance / $25 door
@@ -102,7 +108,8 @@ details: >-
   Doors at seven. All ages until ten, 21+ after.
 ```
 
-Every field is optional; missing ones are skipped. `details` may be a list, and
+Every field is optional; missing ones are skipped, and a stack whose fields are
+all missing takes no cell. `details` may be a list, and
 each item becomes its own line. A folder with one image needs no `image:` key.
 
 A flyer may also override any part of the design in place — `page:`,
@@ -129,6 +136,7 @@ Three things are worth knowing:
 - **A field's `span:`** is how many grid columns it takes — a number, or `all`
   for the full measure. It is clamped to the grid, so the same design works at
   one column and at four; in a column flow every field spans the single column.
+  A stacked cell takes the widest span of its fields.
 - **Hierarchy is weight, size and tint**, not a second hue. A field's `color:`
   can be `ink`, `ground`, `tint` (ink held back toward the ground by
   `palette.tint`) or a literal hex. Anything else is an error, which is what
@@ -160,7 +168,7 @@ python3 -m flyer build [slug ...]   # render to out/ (the default command)
 python3 -m flyer list               # content folders and their photos
 python3 -m flyer inspect [slug]     # the resolved slots and every baseline
 python3 -m flyer sheet              # out/index.html, a contact sheet
-make test                           # 82 tests, standard library only
+make test                           # 84 tests, standard library only
 ```
 
 `build` prints what each flyer resolved to:
