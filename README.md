@@ -27,11 +27,25 @@ and by the gutter on the side it shares with the photo. It is aligned *against*
 the photo: photo on the left, text is left aligned to it; photo on the right,
 right aligned; photo on top, the text sits up against it, and so on.
 
-**The flow** follows the split. A vertical split gives a tall, narrow measure,
-so the fields stack in a column. A horizontal split gives a wide, short band, so
-they run across it in a row, wrapping onto further rows as they fill the width.
-Blocks sharing a row sit on a common baseline, so a venue set small reads as
-part of the line the headline ends on rather than floating above it.
+**The flow** is a column grid inside the text box, and it follows the split. A
+vertical split gives a tall, narrow measure, so the grid is one column and the
+fields stack. A horizontal split gives a wide, short band, so the grid is four
+columns and the fields run across it, breaking to a new row when one is full. A
+field can span several columns, and the performer spans them all — which is why
+the headline takes a row to itself and reads as a banner:
+
+```
+┌─────────────────────────────────────────────┐
+│ MARTA REYES TRIO                            │  performer, span: all
+├──────────────────────┬──────────────────────┤
+│ GALLERY 9            │ Saturday, November 14│  venue 2, date 2
+├──────────┬───────────┼──────────────────────┤
+│ 9:30 PM  │ FREE      │ Late set, no opener. │  time 1, cost 1, details 2
+└──────────┴───────────┴──────────────────────┘
+```
+
+Blocks sharing a grid row sit on a common baseline, so a venue set small reads
+as part of the line the headline ends on rather than floating above it.
 
 **The colour** is monochrome: one ground colour per flyer, drawn from the
 palette. The type is pure ink — black on a light ground, white on a dark one,
@@ -105,6 +119,9 @@ Three things are worth knowing:
 - **The blend follows the ink.** `image.treatment.blend` is `auto` by default —
   multiply on a light ground, screen on a dark one — and can be forced either
   way per flyer, as can each end of the ramp.
+- **A field's `span:`** is how many grid columns it takes — a number, or `all`
+  for the full measure. It is clamped to the grid, so the same design works at
+  one column and at four; in a column flow every field spans the single column.
 - **Hierarchy is weight, size and tint**, not a second hue. A field's `color:`
   can be `ink`, `ground`, `tint` (ink held back toward the ground by
   `palette.tint`) or a literal hex. Anything else is an error, which is what
@@ -136,7 +153,7 @@ python3 -m flyer build [slug ...]   # render to out/ (the default command)
 python3 -m flyer list               # content folders and their photos
 python3 -m flyer inspect [slug]     # the resolved slots and every baseline
 python3 -m flyer sheet              # out/index.html, a contact sheet
-make test                           # 68 tests, standard library only
+make test                           # 76 tests, standard library only
 ```
 
 `build` prints what each flyer resolved to:

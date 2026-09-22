@@ -110,7 +110,7 @@ class Block:
     tracking: float      # em
     color: str
     space_after: float
-    flex: bool
+    span: object         # grid columns to occupy; "all" spans the measure
     fit: bool            # may shrink on its own to fit the measure
     font: object
     local: float = 1.0   # this block's own shrink, set by fit_width
@@ -157,15 +157,6 @@ class Block:
         """Space to the next block: its own descender, then ``space_after``."""
         return -self.font.em("descent") * self.px(scale) + self.space_after * scale
 
-    def natural_width(self, scale=1.0):
-        """Width of the longest hard line, if nothing wrapped it."""
-        size = self.px(scale)
-        return max(
-            (self.font.width(line, size, self.tracking)
-             for line in self.text.split("\n")),
-            default=0.0,
-        )
-
 
 def build_blocks(design, data, scheme):
     blocks = []
@@ -186,7 +177,7 @@ def build_blocks(design, data, scheme):
             tracking=float(style.get("tracking", 0.0)),
             color=scheme.resolve(style.get("color")),
             space_after=float(style.get("space_after", 12)),
-            flex=bool(style.get("flex", name == "details")),
+            span=style.get("span", 1),
             fit=bool(style.get("fit", True)),
             font=fontmetrics.load(design.font_file(weight)),
         ))
@@ -215,151 +206,122 @@ def _fit(measure, limit, tries=16):
     return scale
 
 
-def flow_column(blocks, box, anchor, free_align, options=None):
-    """Stack blocks down the box; ``anchor`` pins them to the image-side edge."""
-    def total(scale):
-        used = 0.0
-        for i, block in enumerate(blocks):
-            block.fit_width(box.w, scale)
-            block.wrap(box.w, scale)
-            used += block.height(scale)
-            if i < len(blocks) - 1:
-                used += block.gap_after(scale)
-        return used
-
-    # Each block fits the measure on its own; the global scale only resolves
-    # a column that is too tall overall.
-    scale = _fit(total, box.h)
-    height = total(scale)
-
-    y = box.y
-    if free_align == "middle":
-        y += (box.h - height) / 2
-    elif free_align == "end":
-        y += box.h - height
-
-    x = box.x if anchor == "start" else box.x + box.w
-    lines = []
-    for i, block in enumerate(blocks):
-        size = block.px(scale)
-        baseline = y + block.font.em("cap_height") * size
-        for text in block.lines:
-            if text:
-                lines.append(Line(
-                    text=text, x=x, baseline=baseline, anchor=anchor,
-                    size=size, weight=block.weight, color=block.color,
-                    width=block.font.width(text, size, block.tracking),
-                    field=block.name,
-                ))
-            baseline += block.leading * size
-        y += block.height(scale)
-        if i < len(blocks) - 1:
-            y += block.gap_after(scale)
-    return lines, {"scale": round(scale, 4), "text_height": round(height, 2)}
+def resolve_span(value, columns):
+    """How many grid columns a field occupies. ``all`` spans the measure."""
+    if value in (None, "", 1):
+        return 1
+    if isinstance(value, str):
+        key = value.strip().lower()
+        if key in ("all", "full", "span"):
+            return columns
+        value = int(key)
+    return max(1, min(int(value), columns))
 
 
-def flow_row(blocks, box, anchor, free_align, options=None):
-    """Flow blocks left to right, wrapping onto further rows as they run out.
+def flow_grid(blocks, box, anchor, free_align, flow, options=None):
+    """Lay the fields out on a column grid inside the text box.
 
-    This is the wide, short band under (or over) a landscape photo: the blocks
-    read across it like a line of type rather than stacking. ``anchor`` pins
-    the whole set to the edge the photo is on.
+    One grid serves both flows: a column flow is a single column, so the fields
+    stack down the measure, and a row flow is several, so they run across the
+    band. A field spanning every column takes a grid row to itself, which is
+    how the performer reads as a banner rather than one item among many.
     """
     options = options or {}
-    max_column = float(options.get("max_column", 0.5)) * box.w
-    row_gap = float(options.get("row_gap", 20))
-    # Blocks of different sizes sharing a row sit on a common baseline, so a
-    # venue set small reads as part of the line the headline ends on.
+    gutter = float(options.get("column_gap", 26))
+
+    def per_flow(key, default):
+        value = options.get(key, default)
+        return value.get(flow, default[flow]) if isinstance(value, dict) else value
+
+    columns = max(1, int(per_flow("columns", {"column": 1, "row": 4})))
+    # Stacked fields keep their own optical spacing; a grid row of several
+    # fields needs more air than the tightest field in it would ask for.
+    row_gap = float(per_flow("row_gap", {"column": 0, "row": 12}))
     row_align = normalize_align(options.get("row_align", "end"), "grid.row_align")
     if row_align == "random":
         raise LayoutError("grid.row_align: expected start/middle/end")
-    # Columns sit side by side, so they need a horizontal gap of their own;
-    # space_after is tuned for the optical spacing of stacked blocks.
-    column_gap = float(options.get("column_gap", 26))
 
-    def ink_width(block, reserved, scale):
-        """Set a block in ``reserved`` width, then report what it actually fills.
+    column_width = (box.w - gutter * (columns - 1)) / columns
+    if column_width <= 0:
+        raise LayoutError(
+            f"grid.columns: {columns} columns with a {gutter}pt gutter do not "
+            f"fit the {box.w:.0f}pt measure")
 
-        A block given more room than its text needs would otherwise widen the
-        row and throw off where free_align puts it.
-        """
-        block.fit_width(reserved, scale)
-        block.wrap(reserved, scale)
-        return min(reserved, max(
-            (block.font.width(line, block.px(scale), block.tracking)
-             for line in block.lines), default=reserved))
-
-    def pack(scale):
-        """Measure every block, then greedily break the sequence into rows."""
-        widths = [ink_width(block, min(block.natural_width(scale), max_column), scale)
-                  for block in blocks]
-
-        rows, row, used = [], [], 0.0
-        for i, (block, width) in enumerate(zip(blocks, widths)):
-            gap = column_gap * scale if row else 0.0
-            if row and used + gap + width > box.w:
+    def place(scale):
+        """Fill the grid left to right, breaking to a new row when it is full."""
+        rows, row, cursor = [], [], 0
+        for block in blocks:
+            span = resolve_span(block.span, columns)
+            if row and cursor + span > columns:
                 rows.append(row)
-                row, used = [], 0.0
-                gap = 0.0
-            row.append([block, width, gap])
-            used += gap + width
+                row, cursor = [], 0
+            width = span * column_width + (span - 1) * gutter
+            block.fit_width(width, scale)
+            block.wrap(width, scale)
+            row.append((block, cursor * (column_width + gutter), width))
+            cursor += span
+            if cursor >= columns:
+                rows.append(row)
+                row, cursor = [], 0
         if row:
             rows.append(row)
-
-        # A flexible block on a row takes whatever width that row has left.
-        for row in rows:
-            spare = box.w - sum(w + g for _, w, g in row)
-            flexes = [item for item in row if item[0].flex]
-            if spare > 1 and flexes:
-                for item in flexes:
-                    item[1] = ink_width(item[0], item[1] + spare / len(flexes), scale)
         return rows
 
+    def gap_below(row, scale):
+        return max([b.gap_after(scale) for b, _, _ in row] + [row_gap * scale])
+
     def height_of(rows, scale):
-        return (sum(max(b.height(scale) for b, _, _ in row) for row in rows)
-                + row_gap * scale * (len(rows) - 1))
+        """Row heights, with the spacing the blocks in each row ask for."""
+        total = sum(max(b.height(scale) for b, _, _ in row) for row in rows)
+        return total + sum(gap_below(row, scale) for row in rows[:-1])
 
-    def measure(scale):
-        return height_of(pack(scale), scale)
-
-    scale = _fit(measure, box.h)
-    rows = pack(scale)
+    # Each cell fits its column on its own; the global scale only resolves a
+    # grid that is too tall for the text box.
+    scale = _fit(lambda s: height_of(place(s), s), box.h)
+    rows = place(scale)
     height = height_of(rows, scale)
 
-    # The rows are pinned to the edge the photo is on; free_align is horizontal.
-    y = box.y if anchor == "start" else box.y + box.h - height
+    # On a vertical split the free axis is vertical; on a horizontal one the
+    # grid fills the width and the rows are pinned to the edge the photo is on.
+    slot = free_align if flow == "column" else anchor
+    y = box.y
+    if slot == "middle":
+        y += (box.h - height) / 2
+    elif slot == "end":
+        y += box.h - height
 
     lines = []
-    for row in rows:
-        row_width = sum(w + g for _, w, g in row)
+    for i, row in enumerate(rows):
         row_height = max(b.height(scale) for b, _, _ in row)
-        x = box.x
-        if free_align == "middle":
-            x += (box.w - row_width) / 2
-        elif free_align == "end":
-            x += box.w - row_width
-        for block, width, gap in row:
-            x += gap
+        for block, offset, width in row:
             size = block.px(scale)
             slack = row_height - block.height(scale)
             top = y + (slack if row_align == "end"
                        else slack / 2 if row_align == "middle" else 0.0)
             baseline = top + block.font.em("cap_height") * size
+            # In a column flow the cells are aligned against the photo too.
+            cell_anchor = anchor if flow == "column" else "start"
+            x = box.x + offset + (width if cell_anchor == "end" else 0.0)
             for text in block.lines:
                 if text:
                     lines.append(Line(
-                        text=text, x=x, baseline=baseline, anchor="start",
+                        text=text, x=x, baseline=baseline, anchor=cell_anchor,
                         size=size, weight=block.weight, color=block.color,
                         width=block.font.width(text, size, block.tracking),
                         field=block.name,
                     ))
                 baseline += block.leading * size
-            x += width
-        y += row_height + row_gap * scale
+        y += row_height
+        if i < len(rows) - 1:
+            y += gap_below(row, scale)
 
-    return lines, {"scale": round(scale, 4),
-                   "rows": [[b.name for b, _, _ in row] for row in rows],
-                   "text_height": round(height, 2)}
+    return lines, {
+        "scale": round(scale, 4),
+        "columns": columns,
+        "column_width": round(column_width, 2),
+        "rows": [[b.name for b, _, _ in row] for row in rows],
+        "text_height": round(height, 2),
+    }
 
 
 # --------------------------------------------------------------------------
@@ -464,8 +426,8 @@ def plan(flyer, href_for_image):
         "text.align", design.data.get("typography", {}).get("align"))
 
     blocks = build_blocks(design, flyer.data, scheme)
-    run = flow_column if flow == "column" else flow_row
-    lines, notes = run(blocks, box, anchor, free_align, design.data.get("grid", {}))
+    lines, notes = flow_grid(blocks, box, anchor, free_align, flow,
+                             design.data.get("grid", {}))
 
     notes.update({
         "split": split, "flow": flow, "orientation": flyer.orientation,

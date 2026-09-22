@@ -181,19 +181,22 @@ class TestTextFits(unittest.TestCase):
             self.assertGreater(len({round(line.baseline, 3) for line in page.lines}), 1)
 
     def test_row_align_can_be_moved_to_the_top(self):
-        def baselines(row_align):
+        def pair(row_align):
             overrides = {"grid": {"row_align": row_align}} if row_align else {}
             with Fixture(overrides, size=(90, 60)) as flyer:
                 page = plan(flyer, "p.png")
-                self.assertIn("venue", page.notes["rows"][0])
-                head = [l.baseline for l in page.lines if l.field == "performer"]
-                venue = [l.baseline for l in page.lines if l.field == "venue"]
-                return head, venue[0]
+                row = next(r for r in page.notes["rows"] if "details" in r)
+                self.assertIn("cost", row)             # two blocks, two heights
+                last = {"cost": 0.0, "details": 0.0}
+                for line in page.lines:
+                    if line.field in last:
+                        last[line.field] = max(last[line.field], line.baseline)
+                return last["cost"], last["details"]
 
-        head, venue = baselines(None)                  # the default, bottom
-        self.assertAlmostEqual(venue, max(head), places=3)
-        head, venue = baselines("top")                 # cap tops align instead
-        self.assertLess(venue, min(head))
+        cost, details = pair(None)          # the default: a shared last baseline
+        self.assertAlmostEqual(cost, details, places=3)
+        cost, details = pair("top")         # cap tops align, so the taller
+        self.assertGreater(cost, details)   # block now hangs below the other
 
     def test_sparse_content_still_lays_out(self):
         with Fixture({"venue": None, "cost": None, "details": None},
@@ -206,6 +209,57 @@ class TestTextFits(unittest.TestCase):
         with Fixture({k: None for k in
                       ("performer", "venue", "date", "time", "cost", "details")}) as f:
             with self.assertRaises(LayoutError):
+                plan(f, "p.png")
+
+
+class TestGrid2(unittest.TestCase):
+    """The text sits on a column grid, and the performer spans it."""
+
+    def test_the_performer_spans_the_measure(self):
+        for size in ((60, 90), (90, 60)):
+            with self.subTest(size=size):
+                with Fixture(size=size) as flyer:
+                    page = plan(flyer, "p.png")
+                    box = text_box(page)
+                    self.assertEqual(page.notes["rows"][0], ["performer"])
+                    head = [l for l in page.lines if l.field == "performer"]
+                    self.assertTrue(all(l.x == box.x for l in head))
+
+    def test_cells_snap_to_the_column_grid(self):
+        with Fixture(size=(90, 60)) as flyer:
+            page = plan(flyer, "p.png")
+            box = text_box(page)
+            columns, width = page.notes["columns"], page.notes["column_width"]
+            self.assertEqual(columns, 4)
+            gutter = 26
+            tracks = [round(box.x + i * (width + gutter), 2) for i in range(columns)]
+            for line in page.lines:
+                self.assertIn(round(line.x, 2), tracks, line.text)
+
+    def test_column_flow_is_a_single_column(self):
+        with Fixture(size=(60, 90)) as flyer:
+            page = plan(flyer, "p.png")
+            self.assertEqual(page.notes["columns"], 1)
+            self.assertEqual([row[0] for row in page.notes["rows"]],
+                             ["performer", "venue", "date", "time", "cost",
+                              "details"])
+
+    def test_a_span_wider_than_the_grid_is_clamped(self):
+        with Fixture({"typography": {"fields": {"venue": {"span": 9}}}},
+                     size=(90, 60)) as flyer:
+            page = plan(flyer, "p.png")
+            self.assertEqual(next(r for r in page.notes["rows"] if "venue" in r),
+                             ["venue"])
+
+    def test_the_grid_can_be_widened(self):
+        with Fixture({"grid": {"columns": {"row": 6}}}, size=(90, 60)) as flyer:
+            page = plan(flyer, "p.png")
+            self.assertEqual(page.notes["columns"], 6)
+            self.assertLess(page.notes["column_width"], 90)
+
+    def test_too_many_columns_is_reported(self):
+        with Fixture({"grid": {"columns": {"column": 40}}}, size=(60, 90)) as f:
+            with self.assertRaisesRegex(LayoutError, "do not"):
                 plan(f, "p.png")
 
 

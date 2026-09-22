@@ -12,11 +12,18 @@ grid:
   # it vertically (two columns), a landscape photo horizontally (two rows).
   split: auto         # auto | vertical | horizontal
   flow: auto          # auto | column | row  (auto: column on a vertical split)
-  # Row flow only: columns wrap onto further rows when they run out of width.
-  max_column: 0.5     # widest a single column may be, as a fraction of the band
-  column_gap: 26      # between columns
-  row_gap: 20         # between wrapped rows
-  row_align: bottom   # how blocks of different sizes sit within a row:
+  # The text sits on a column grid. A column flow is one column, so the fields
+  # stack down the measure; a row flow is four, so they run across the band.
+  # A field may span several columns (see `span` below) and one spanning them
+  # all takes a grid row to itself.
+  columns:
+    column: 1
+    row: 4
+  column_gap: 26      # the grid gutter
+  row_gap:            # a floor on the space between grid rows; a stacked field
+    column: 0         # keeps its own space_after, a grid row gets some air
+    row: 12
+  row_align: bottom   # how blocks of different sizes sit within a grid row:
                       # bottom shares a baseline (top/center also accepted)
 
 image:
@@ -66,6 +73,7 @@ typography:
       tracking: -0.025
       leading: 0.92
       space_after: 14
+      span: all       # the headline always takes the full measure
     venue:
       size: 19
       weight: 700
@@ -73,12 +81,14 @@ typography:
       tracking: 0.06
       leading: 1.15
       space_after: 4
+      span: 2         # long venue names still set on one line
     date:
       size: 19
       weight: 500
       leading: 1.15
       color: tint     # ink held back toward the ground
       space_after: 2
+      span: 2         # dates are long; give them two columns of the row grid
     time:
       size: 19
       weight: 500
@@ -96,7 +106,7 @@ typography:
       weight: 400
       leading: 1.5
       space_after: 0
-      flex: true      # in row flow, this column absorbs the leftover width
+      span: 2         # the sentence needs a measure, not a column
 
 formats:
   date: "%A, %B %-d"
