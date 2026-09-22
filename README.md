@@ -30,6 +30,8 @@ right aligned; photo on top, the text sits up against it, and so on.
 **The flow** follows the split. A vertical split gives a tall, narrow measure,
 so the fields stack in a column. A horizontal split gives a wide, short band, so
 they run across it in a row, wrapping onto further rows as they fill the width.
+Blocks sharing a row sit on a common baseline, so a venue set small reads as
+part of the line the headline ends on rather than floating above it.
 
 **The colour** is monochrome: one ground colour per flyer, drawn from the
 palette. The type is pure ink — black on a light ground, white on a dark one,

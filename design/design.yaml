@@ -16,6 +16,8 @@ grid:
   max_column: 0.5     # widest a single column may be, as a fraction of the band
   column_gap: 26      # between columns
   row_gap: 20         # between wrapped rows
+  row_align: bottom   # how blocks of different sizes sit within a row:
+                      # bottom shares a baseline (top/center also accepted)
 
 image:
   # Unset slots are picked deterministically from the flyer's name, so the same

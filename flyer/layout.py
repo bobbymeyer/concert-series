@@ -268,21 +268,31 @@ def flow_row(blocks, box, anchor, free_align, options=None):
     options = options or {}
     max_column = float(options.get("max_column", 0.5)) * box.w
     row_gap = float(options.get("row_gap", 20))
+    # Blocks of different sizes sharing a row sit on a common baseline, so a
+    # venue set small reads as part of the line the headline ends on.
+    row_align = normalize_align(options.get("row_align", "end"), "grid.row_align")
+    if row_align == "random":
+        raise LayoutError("grid.row_align: expected start/middle/end")
     # Columns sit side by side, so they need a horizontal gap of their own;
     # space_after is tuned for the optical spacing of stacked blocks.
     column_gap = float(options.get("column_gap", 26))
 
+    def ink_width(block, reserved, scale):
+        """Set a block in ``reserved`` width, then report what it actually fills.
+
+        A block given more room than its text needs would otherwise widen the
+        row and throw off where free_align puts it.
+        """
+        block.fit_width(reserved, scale)
+        block.wrap(reserved, scale)
+        return min(reserved, max(
+            (block.font.width(line, block.px(scale), block.tracking)
+             for line in block.lines), default=reserved))
+
     def pack(scale):
         """Measure every block, then greedily break the sequence into rows."""
-        widths = []
-        for block in blocks:
-            width = min(block.natural_width(scale), max_column)
-            block.fit_width(width, scale)
-            block.wrap(width, scale)
-            # Wrapping can leave the block narrower than the space reserved.
-            widths.append(min(width, max(
-                (block.font.width(line, block.px(scale), block.tracking)
-                 for line in block.lines), default=width)))
+        widths = [ink_width(block, min(block.natural_width(scale), max_column), scale)
+                  for block in blocks]
 
         rows, row, used = [], [], 0.0
         for i, (block, width) in enumerate(zip(blocks, widths)):
@@ -302,9 +312,7 @@ def flow_row(blocks, box, anchor, free_align, options=None):
             flexes = [item for item in row if item[0].flex]
             if spare > 1 and flexes:
                 for item in flexes:
-                    item[1] += spare / len(flexes)
-                    item[0].fit_width(item[1], scale)
-                    item[0].wrap(item[1], scale)
+                    item[1] = ink_width(item[0], item[1] + spare / len(flexes), scale)
         return rows
 
     def height_of(rows, scale):
@@ -324,6 +332,7 @@ def flow_row(blocks, box, anchor, free_align, options=None):
     lines = []
     for row in rows:
         row_width = sum(w + g for _, w, g in row)
+        row_height = max(b.height(scale) for b, _, _ in row)
         x = box.x
         if free_align == "middle":
             x += (box.w - row_width) / 2
@@ -332,7 +341,10 @@ def flow_row(blocks, box, anchor, free_align, options=None):
         for block, width, gap in row:
             x += gap
             size = block.px(scale)
-            baseline = y + block.font.em("cap_height") * size
+            slack = row_height - block.height(scale)
+            top = y + (slack if row_align == "end"
+                       else slack / 2 if row_align == "middle" else 0.0)
+            baseline = top + block.font.em("cap_height") * size
             for text in block.lines:
                 if text:
                     lines.append(Line(
@@ -343,7 +355,7 @@ def flow_row(blocks, box, anchor, free_align, options=None):
                     ))
                 baseline += block.leading * size
             x += width
-        y += max(b.height(scale) for b, _, _ in row) + row_gap * scale
+        y += row_height + row_gap * scale
 
     return lines, {"scale": round(scale, 4),
                    "rows": [[b.name for b, _, _ in row] for row in rows],

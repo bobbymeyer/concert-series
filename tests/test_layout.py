@@ -165,6 +165,36 @@ class TestTextFits(unittest.TestCase):
                 self.assertGreater(below.baseline - above.baseline,
                                    above.size * 0.75, f"{above.text} / {below.text}")
 
+    def test_row_flow_shares_a_baseline_across_each_row(self):
+        with Fixture(size=(90, 60)) as flyer:
+            page = plan(flyer, "p.png")
+            self.assertEqual(page.notes["flow"], "row")
+            # Every block in a row ends on the row's baseline, whatever its size.
+            for row in page.notes["rows"]:
+                last = {}
+                for line in page.lines:
+                    if line.field in row:
+                        last[line.field] = max(last.get(line.field, 0), line.baseline)
+                self.assertEqual(len(set(round(b, 3) for b in last.values())), 1,
+                                 f"{row} -> {last}")
+            # The rows themselves still differ.
+            self.assertGreater(len({round(line.baseline, 3) for line in page.lines}), 1)
+
+    def test_row_align_can_be_moved_to_the_top(self):
+        def baselines(row_align):
+            overrides = {"grid": {"row_align": row_align}} if row_align else {}
+            with Fixture(overrides, size=(90, 60)) as flyer:
+                page = plan(flyer, "p.png")
+                self.assertIn("venue", page.notes["rows"][0])
+                head = [l.baseline for l in page.lines if l.field == "performer"]
+                venue = [l.baseline for l in page.lines if l.field == "venue"]
+                return head, venue[0]
+
+        head, venue = baselines(None)                  # the default, bottom
+        self.assertAlmostEqual(venue, max(head), places=3)
+        head, venue = baselines("top")                 # cap tops align instead
+        self.assertLess(venue, min(head))
+
     def test_sparse_content_still_lays_out(self):
         with Fixture({"venue": None, "cost": None, "details": None},
                      size=(60, 90)) as flyer:
