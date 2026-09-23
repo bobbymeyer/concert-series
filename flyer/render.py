@@ -58,9 +58,12 @@ def tone_filter(image, filter_id="tone"):
         f'<feFunc{ch} type="linear" slope="{fmt(hi - lo, 4)}" intercept="{fmt(lo, 4)}"/>'
         for ch, lo, hi in zip("RGB", shadow, highlight)
     )
+    # feColorMatrix saturate runs the other way: 1 leaves the colour alone and
+    # 0 takes all of it out, so a full desaturation is a saturation of nought.
+    saturate = max(0.0, min(1.0, 1.0 - image.desaturate))
     return (
         f'<filter id="{filter_id}" color-interpolation-filters="sRGB">'
-        f'<feColorMatrix type="saturate" values="{fmt(image.desaturate, 4)}"/>'
+        f'<feColorMatrix type="saturate" values="{fmt(saturate, 4)}"/>'
         f'<feComponentTransfer>{funcs}</feComponentTransfer>'
         f'</filter>'
     )

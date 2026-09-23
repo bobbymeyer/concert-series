@@ -68,14 +68,30 @@ class TestRender(unittest.TestCase):
             high.append(low[-1] + float(func.get("slope")))
         return low, high
 
+    def saturate_value(self, flyer):
+        matrix = self.svg(flyer)[0].find(f".//{SVG}feColorMatrix")
+        self.assertEqual(matrix.get("type"), "saturate")
+        return float(matrix.get("values"))
+
     def test_photo_is_desaturated_before_the_ramp(self):
+        """desaturate: 1 must reach the filter as saturate 0, not saturate 1.
+
+        SVG's saturate runs the opposite way to the setting's name, and getting
+        it backwards leaves the photo in full colour under the ramp.
+        """
         with Fixture({"scheme": "dusk"}, size=(60, 90)) as flyer:
+            self.assertEqual(self.saturate_value(flyer), 0.0)
             root, _, _ = self.svg(flyer)
-            matrix = root.find(f".//{SVG}feColorMatrix")
-            self.assertEqual(matrix.get("type"), "saturate")
-            self.assertEqual(matrix.get("values"), "1")
             self.assertEqual(
                 root.find(f".//{SVG}filter").get("color-interpolation-filters"), "sRGB")
+
+    def test_partial_desaturation_leaves_some_colour(self):
+        with Fixture({"image": {"treatment": {"desaturate": 0.25}}},
+                     size=(60, 90)) as flyer:
+            self.assertAlmostEqual(self.saturate_value(flyer), 0.75)
+        with Fixture({"image": {"treatment": {"desaturate": 0}}},
+                     size=(60, 90)) as flyer:
+            self.assertEqual(self.saturate_value(flyer), 1.0)
 
     def test_dark_ground_screens_the_photo_up_to_white(self):
         with Fixture({"scheme": "dusk"}, size=(60, 90)) as flyer:

@@ -1,4 +1,7 @@
 # No opening acts, so the headline cell holds only the performer.
+# The photo is a Squadra Volante Giulia, not a portrait: no free photograph of
+# Micalizzi exists on Commons. The crop is pinned to hold the car and lose the
+# bystanders standing around it at the museum where it was shot.
 performer: Franco Micalizzi
 venue: Public Records
 address: 233 Butler Street, Brooklyn
@@ -6,3 +9,7 @@ date: 2026-03-03
 time: "Midnight"
 cost: $18
 details: Late set in the sound room. Limited capacity.
+
+image:
+  h_align: center
+  v_align: center

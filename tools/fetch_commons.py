@@ -119,33 +119,64 @@ def strip_markup(value):
     return html.unescape(re.sub(r"<[^>]+>", " ", value or "")).strip()
 
 
-def candidates(name, query=None, width=1024, limit=12):
-    """Freely licensed photos that are plausibly of ``name``, best guess first."""
-    search = query or name
-    if width not in THUMB_WIDTHS:
-        raise ValueError(f"width must be one of {THUMB_WIDTHS}")
+def describe(page, width=1024):
+    """Pull the licence and author out of one imageinfo page."""
+    info = (page.get("imageinfo") or [{}])[0]
+    meta = info.get("extmetadata", {})
+
+    def field(key):
+        return strip_markup((meta.get(key) or {}).get("value", ""))
+
+    return {
+        "title": page["title"],
+        "url": info.get("thumburl") or info.get("url"),
+        "descriptionurl": info.get("descriptionurl", ""),
+        "licence": field("LicenseShortName"),
+        "licence_url": field("LicenseUrl"),
+        "author": field("Artist") or "unknown",
+    }
+
+
+def by_title(title, width=1024):
+    """One named Commons file, if its licence is free."""
+    found = api(action="query", titles=title, prop="imageinfo",
+                iiprop="url|extmetadata|size", iiurlwidth=width)
+    pages = found.get("query", {}).get("pages", [])
+    if not pages or "imageinfo" not in pages[0]:
+        raise LookupError(f"no such file on Commons: {title}")
+    item = describe(pages[0], width)
+    if not is_free(item["licence"]):
+        raise LookupError(f"{title} is {item['licence'] or 'unlicensed'}, not free")
+    return item
+
+
+def search(terms, width=1024, limit=20, gate=None):
+    """Freely licensed files matching ``terms``.
+
+    ``gate`` is an optional name the title has to carry; thematic searches pass
+    none, which is why their results still have to be looked at.
+    """
     found = api(action="query", generator="search",
-                gsrsearch=f'"{search}" filetype:bitmap',
-                gsrnamespace="6", gsrlimit=limit, prop="imageinfo",
+                gsrsearch=f"{terms} filetype:bitmap", gsrnamespace="6",
+                gsrlimit=limit, prop="imageinfo",
                 iiprop="url|extmetadata|size", iiurlwidth=width)
     out = []
     for page in found.get("query", {}).get("pages", []):
-        info = (page.get("imageinfo") or [{}])[0]
-        meta = info.get("extmetadata", {})
-        def field(key):
-            return strip_markup((meta.get(key) or {}).get("value", ""))
-        licence = field("LicenseShortName")
-        if not is_free(licence) or not is_about(page["title"], search):
+        item = describe(page, width)
+        if not is_free(item["licence"]):
             continue
-        out.append({
-            "title": page["title"],
-            "url": info.get("thumburl") or info.get("url"),
-            "descriptionurl": info.get("descriptionurl", ""),
-            "licence": licence,
-            "licence_url": field("LicenseUrl"),
-            "author": field("Artist") or "unknown",
-        })
+        if gate and not is_about(item["title"], gate):
+            continue
+        out.append(item)
     return out
+
+
+def candidates(name, query=None, width=1024, limit=12):
+    """Freely licensed photos that are plausibly of ``name``, best guess first."""
+    search_terms = query or name
+    if width not in THUMB_WIDTHS:
+        raise ValueError(f"width must be one of {THUMB_WIDTHS}")
+    return search(f'"{search_terms}"', width=width, limit=limit, gate=search_terms)
 
 
 def download(url, target):
@@ -202,16 +233,53 @@ def main(argv=None):
                         help="which of the candidates to take (1-based)")
     parser.add_argument("--query", default=None,
                         help="search Commons for this instead of the performer")
+    parser.add_argument("--search", default=None,
+                        help="list free files matching these terms and stop; "
+                             "no name gate, so look before you take one")
+    parser.add_argument("--file", default=None,
+                        help="fetch this exact Commons file (File:Name.jpg) "
+                             "into the one named slug")
     parser.add_argument("--credits-only", action="store_true",
                         help="re-record attributions for photos already fetched, "
                              "without downloading them again")
     args = parser.parse_args(argv)
 
     root = Path(args.content)
+
+    if args.search:
+        for i, item in enumerate(search(args.search), 1):
+            print(f"{i:3}. {item['title']}")
+            print(f"     [{item['licence']}]  {item['author']}")
+            print(f"     {item['url']}")
+        return 0
+
     folders = [f for f in discover(root)
                if not args.slugs or f.name in set(args.slugs)]
     if not folders:
         raise SystemExit(f"no flyers found in {root}/")
+
+    if args.file:
+        if len(folders) != 1:
+            raise SystemExit("--file needs exactly one slug")
+        folder = folders[0]
+        data = load_yaml(Flyer._content_file_in(folder))
+        pick = by_title(args.file)
+        suffix = Path(urllib.parse.urlparse(pick["url"]).path).suffix or ".jpg"
+        target = folder / f"photo{suffix}"
+        if args.write:
+            download(pick["url"], target)
+            for old in folder.glob("photo.*"):
+                if old != target:
+                    old.unlink()
+            record_credit(folder, dict(pick, slug=folder.name,
+                                       performer=str(data.get("performer", "")),
+                                       file=target.name))
+            write_credits(root)
+            print(f"wrote {target}  [{pick['licence']}]  {pick['author']}")
+        else:
+            print(f"{pick['title']}  [{pick['licence']}]  {pick['author']}")
+            print("pass --write to download it")
+        return 0
 
     rows = []
     for folder in folders:

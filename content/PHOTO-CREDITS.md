@@ -18,6 +18,13 @@ named for each. Rebuilt by `tools/fetch_commons.py` from the
 - Author: Olivier Strecker
 - Licence: CC BY-SA 3.0 https://creativecommons.org/licenses/by-sa/3.0
 
+## Franco Micalizzi
+
+- File: `franco-micalizzi/photo.jpg`
+- Source: https://commons.wikimedia.org/wiki/File:Alfa_Romeo_Giulia_Super_-_Polizia_di_Stato_(5892626772).jpg
+- Author: sv1ambo
+- Licence: CC BY 2.0 https://creativecommons.org/licenses/by/2.0
+
 ## Piero Piccioni
 
 - File: `piero-piccioni/photo.jpg`
