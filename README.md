@@ -213,10 +213,25 @@ each do. The events are invented; the composers are not.
 
 **The photos are generated stand-ins, not the composers.**
 `tools/make_placeholder.py` writes a deterministic PNG with the tonal range of
-a portrait from a film still, which is all the duotone treatment reads.
-Photographs of these men are still in copyright, so drop in images you have the
-rights to and rebuild — the filename is the only thing the flyer yaml cares
-about.
+a portrait from a film still, which is all the duotone treatment reads. Drop in
+images you have the rights to and rebuild — the filename is the only thing the
+flyer yaml cares about.
+
+For real photographs, `tools/fetch_commons.py` pulls them from Wikimedia
+Commons, which publishes a licence and an author for every file:
+
+```
+python3 tools/fetch_commons.py                 # look, change nothing
+python3 tools/fetch_commons.py --write         # download and write credits
+```
+
+It keeps only files under a free licence — CC0, CC BY, CC BY-SA, public domain
+— skipping anything marked non-commercial, no-derivatives or non-free, and
+writes `content/PHOTO-CREDITS.md` with the author, licence and source those
+licences require you to carry. A press or streaming-service still is licensed
+to the publisher rather than to you, so it is not a source this fetches from.
+Not every composer has a freely licensed photo; those keep their stand-in, and
+the run says which.
 
 ## Layout
 
