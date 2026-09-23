@@ -1,16 +1,16 @@
 # A portrait photo, so the page bisects vertically and the text flows in a
-# column. Nothing here pins the grid, so the cell and crop are picked from the
-# folder name — stable across runs, different from the next flyer.
-performer: Cardinal Wax
+# column. Nothing here pins the grid: the cell, the crop and the ground colour
+# all come from the folder name.
+performer: Ennio Morricone
 openers:                  # nought to four; omit the key for none
-  - Signal Hill
-  - Paper Anchor
-venue: The Bell House
-address: 149 Seventh Street, Brooklyn
+  - Bruno Nicolai
+  - Alessandro Alessandroni
+venue: Roulette
+address: 509 Atlantic Avenue, Brooklyn
 date: 2026-10-03          # a real date: design.yaml formats it, and can set
                           # it a shorter way if the column is too narrow
 time: "8:00 PM"           # quote times: bare 8:00 is a sexagesimal number in yaml
 cost: $22 advance / $25 door
 details: >-
-  Doors at seven. All ages until ten, 21+ after.
-  Tickets at the bar or online, cash and card.
+  An evening of scores for Italian crime cinema, played live.
+  Doors at seven, all ages until ten.

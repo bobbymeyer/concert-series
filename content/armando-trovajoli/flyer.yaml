@@ -1,0 +1,16 @@
+performer: Armando Trovajoli
+openers: Carlo Rustichelli
+venue: Anthology Film Archives
+address: 32 Second Avenue, New York
+date: 2026-01-22
+time: "7:00 PM"
+cost: $30 / $35 door
+details:
+  - An evening in two parts, with an intermission.
+  - Seating is first come.
+
+scheme: night             # by name, from design.yaml's palette
+image:
+  cell: top               # top/bottom here; left/right on a vertical split
+  h_align: center
+  v_align: top

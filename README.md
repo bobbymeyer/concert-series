@@ -36,13 +36,13 @@ the headline takes a row to itself and reads as a banner:
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│ MARTA REYES TRIO                                     │  [performer,
-│ NIX & NINE                                           │   openers] all
+│ STELVIO CIPRIANI                                     │  [performer,
+│ FRANCO MICALIZZI + RIZ ORTOLANI                      │   openers] all
 ├────────────────────┬─────────────────────┬───────────┤
-│ GALLERY 9          │ Saturday, November 14│ FREE     │  [venue, address] 2
-│ 9 Ludlow Street    │ 9:30 PM              │          │  [date, time] 2, cost 1
+│ LE POISSON ROUGE   │ Wed, September 23    │ $15      │  [venue, address] 2
+│ 158 Bleecker Street│ 10:00 PM             │          │  [date, time] 2, cost 1
 ├────────────────────┴──────────────┬───────┴───────────┤
-│ Late set, no opener.              │                   │  details 3
+│ A night of chases and stakeouts.  │                   │  details 3
 └───────────────────────────────────┴───────────────────┘
 ```
 
@@ -100,23 +100,23 @@ Alignments accept `start` / `middle` / `end` or the friendlier `top`, `bottom`,
 
 ```
 content/
-  cardinal-wax/
+  ennio-morricone/
     flyer.yaml
     photo.png
 ```
 
 ```yaml
-performer: Cardinal Wax
+performer: Ennio Morricone
 openers:                    # nought to four supporting acts
-  - Signal Hill
-  - Paper Anchor
-venue: The Bell House
-address: 149 Seventh Street, Brooklyn
+  - Bruno Nicolai
+  - Alessandro Alessandroni
+venue: Roulette
+address: 509 Atlantic Avenue, Brooklyn
 date: 2026-10-03            # a real date, formatted by design.yaml
 time: "8:00 PM"             # quote times: bare 8:00 is a number in yaml
 cost: $22 advance / $25 door
 details: >-
-  Doors at seven. All ages until ten, 21+ after.
+  An evening of scores for Italian crime cinema, played live.
 ```
 
 Every field is optional; missing ones are skipped, and a stack whose fields are
@@ -188,8 +188,8 @@ make test                           # 94 tests, standard library only
 `build` prints what each flyer resolved to:
 
 ```
-out/cardinal-wax.svg  portrait/vertical photo:start middle/end  column flow
-                      ground:bone 1/6  type:100%  905kB
+out/ennio-morricone.svg  portrait/vertical photo:start end/start  column flow
+                         ground:acid 2/6  type:100%  985kB
 ```
 
 `1/6` is the flyer's place in the ground rotation, and `type:100%` means
@@ -204,11 +204,19 @@ under the SIL Open Font License 1.1 (`design/fonts/OFL.txt`). The four static
 weights in `design/fonts/` were instanced from the upstream variable font so
 that advance widths are exact per weight.
 
-## Placeholder photos
+## The example content
 
-The example flyers ship with generated stand-ins rather than a real band photo.
-`tools/make_placeholder.py` writes them; replace them with real images and
-rebuild.
+The examples are a season of Italian film-score nights — Morricone, Piccioni,
+Cipriani, Trovajoli, Micalizzi, the De Angelis brothers — chosen because a run
+of six shows off what the series rotation, the grid and the opening-act bill
+each do. The events are invented; the composers are not.
+
+**The photos are generated stand-ins, not the composers.**
+`tools/make_placeholder.py` writes a deterministic PNG with the tonal range of
+a portrait from a film still, which is all the duotone treatment reads.
+Photographs of these men are still in copyright, so drop in images you have the
+rights to and rebuild — the filename is the only thing the flyer yaml cares
+about.
 
 ## Layout
 

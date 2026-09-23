@@ -37,7 +37,12 @@ def png(path, width, height, pixel):
 
 
 def scene(width, height, seed):
-    """A lit subject against a falling-off background, plus grain."""
+    """A lit subject against a falling-off background, plus grain.
+
+    Shaped like a portrait from a 1970s film still -- one key light, a rim, a
+    vignette and coarse grain -- because that tonal range is all the duotone
+    treatment reads. It is a stand-in, not a likeness of anyone.
+    """
     rng = random.Random(seed)
     cx, cy = width * rng.uniform(0.38, 0.62), height * rng.uniform(0.34, 0.48)
     radius = min(width, height) * rng.uniform(0.30, 0.38)
@@ -65,6 +70,11 @@ def scene(width, height, seed):
         for bx, by, br, tone in blobs:                   # foreground shapes
             if math.hypot((x - bx) / br, (y - by) / (br * 0.8)) < 1.0:
                 value += tone
+
+        # A vignette and a contrast curve, so the duotone has somewhere to go.
+        dx, dy = (x / width - 0.5) * 2, (y / height - 0.5) * 2
+        value *= 1.0 - 0.38 * min(1.0, (dx * dx + dy * dy) ** 1.1)
+        value = 128 + (value - 128) * 1.28
 
         value += grain[((x >> 1) * 31 + (y >> 1) * 17) % len(grain)]
         # A faint cast, so `desaturate` has something to remove.
