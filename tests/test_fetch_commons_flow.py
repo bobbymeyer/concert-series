@@ -22,21 +22,29 @@ from make_placeholder import png, scene                # noqa: E402
 
 PHOTO_URL = "https://upload.wikimedia.org/thumb/Example.jpg"
 
-# Shaped like a real commons query=generator=search response.
+def page(title, url, licence, artist, licence_url=""):
+    return {"title": title, "imageinfo": [{
+        "thumburl": url,
+        "descriptionurl": "https://commons.wikimedia.org/wiki/" + title.replace(" ", "_"),
+        "extmetadata": {"LicenseShortName": {"value": licence},
+                        "LicenseUrl": {"value": licence_url},
+                        "Artist": {"value": artist}}}]}
+
+
+# Shaped like a real commons query=generator=search response, and carrying the
+# two kinds of result a real search returns alongside the one you want: a photo
+# of the right person under the wrong licence, and a freely licensed photo of
+# something else entirely that merely shares a word.
 SEARCH = {"query": {"pages": [
-    {"title": "File:Free photo.jpg",
-     "imageinfo": [{"thumburl": PHOTO_URL,
-                    "descriptionurl": "https://commons.wikimedia.org/wiki/File:Free_photo.jpg",
-                    "extmetadata": {
-                        "LicenseShortName": {"value": "CC BY-SA 4.0"},
-                        "LicenseUrl": {"value": "https://creativecommons.org/licenses/by-sa/4.0"},
-                        "Artist": {"value": '<a href="/wiki/User:P">Some Photographer</a>'}}}]},
-    {"title": "File:Restricted photo.jpg",
-     "imageinfo": [{"thumburl": "https://upload.wikimedia.org/thumb/No.jpg",
-                    "descriptionurl": "https://commons.wikimedia.org/wiki/File:No.jpg",
-                    "extmetadata": {
-                        "LicenseShortName": {"value": "CC BY-NC 3.0"},
-                        "Artist": {"value": "Someone Else"}}}]},
+    page("File:Ennio Morricone Cannes 2007.jpg", PHOTO_URL, "CC BY-SA 4.0",
+         '<a href="/wiki/User:P">Some Photographer</a>',
+         "https://creativecommons.org/licenses/by-sa/4.0"),
+    page("File:Ennio Morricone portrait.jpg",
+         "https://upload.wikimedia.org/thumb/NoLicence.jpg", "CC BY-NC 3.0",
+         "Someone Else"),
+    page("File:Moscow trolleybus MTRZ-5279.jpg",
+         "https://upload.wikimedia.org/thumb/NotHim.jpg", "CC BY-SA 4.0",
+         "Artyom Svetlov"),
 ]}}
 
 
@@ -80,7 +88,8 @@ class TestFetchFlow(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.tmp, True)
 
     def run_tool(self, *args):
-        with mock.patch.object(fetch_commons.urllib.request, "urlopen", fake_urlopen):
+        with mock.patch.object(fetch_commons.urllib.request, "urlopen", fake_urlopen), \
+                mock.patch.object(fetch_commons, "PAUSE", 0.0):
             return fetch_commons.main(["--content", str(self.content), *args])
 
     def test_a_dry_run_changes_nothing(self):
@@ -99,19 +108,54 @@ class TestFetchFlow(unittest.TestCase):
     def test_the_restricted_candidate_is_never_taken(self):
         self.run_tool("--write")
         credits = (self.content / "PHOTO-CREDITS.md").read_text()
-        self.assertIn("File:Free_photo.jpg", credits)     # the free candidate
-        self.assertNotIn("File:No.jpg", credits)          # the CC BY-NC one
-        self.assertNotIn("Someone Else", credits)
+        self.assertIn("Ennio_Morricone_Cannes_2007", credits)
+        self.assertNotIn("Someone Else", credits)         # the CC BY-NC one
         self.assertNotIn("NC", credits)
+
+    def test_a_free_photo_of_something_else_is_never_taken(self):
+        """The search returns whatever shares a word; the name gate stops it."""
+        self.run_tool("--write")
+        credits = (self.content / "PHOTO-CREDITS.md").read_text()
+        self.assertNotIn("trolleybus", credits.lower())
+        self.assertNotIn("Artyom", credits)
+        self.assertEqual((self.folder / "photo.jpg").read_bytes(), JPEG_BYTES)
 
     def test_credits_carry_what_the_licence_requires(self):
         self.run_tool("--write")
         credits = (self.content / "PHOTO-CREDITS.md").read_text()
         for needed in ("Ennio Morricone", "Some Photographer", "CC BY-SA 4.0",
                        "creativecommons.org/licenses/by-sa/4.0",
-                       "commons.wikimedia.org/wiki/File:Free_photo.jpg"):
+                       "commons.wikimedia.org/wiki/File:Ennio_Morricone"):
             self.assertIn(needed, credits)
         self.assertNotIn("<a href", credits)          # markup stripped
+
+    def test_fetching_one_flyer_keeps_the_others_credits(self):
+        """Per-slug runs are the normal way to work, and used to clobber."""
+        other = self.content / "piero-piccioni"
+        other.mkdir()
+        (other / "flyer.yaml").write_text("performer: Piero Piccioni\n",
+                                          encoding="utf-8")
+        (other / "photo-credit.yaml").write_text(
+            "performer: Piero Piccioni\nfile: photo.jpg\n"
+            "author: Someone\nlicence: Public domain\n"
+            "descriptionurl: https://commons.wikimedia.org/wiki/File:Piccioni.jpg\n",
+            encoding="utf-8")
+
+        self.run_tool("ennio-morricone", "--write")
+
+        credits = (self.content / "PHOTO-CREDITS.md").read_text()
+        self.assertIn("Ennio Morricone", credits)
+        self.assertIn("Piero Piccioni", credits)      # not dropped by this run
+
+    def test_each_photo_carries_its_own_credit(self):
+        self.run_tool("--write")
+        credit = self.folder / "photo-credit.yaml"
+        self.assertTrue(credit.exists())
+        import yaml as _yaml
+        row = _yaml.safe_load(credit.read_text())
+        self.assertEqual(row["author"], "Some Photographer")
+        self.assertEqual(row["licence"], "CC BY-SA 4.0")
+        self.assertEqual(row["file"], "photo.jpg")
 
     def test_the_downloaded_photo_is_a_photo_the_layout_can_read(self):
         from flyer.imageinfo import probe
