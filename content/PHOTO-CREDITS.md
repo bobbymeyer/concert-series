@@ -11,6 +11,13 @@ named for each. Rebuilt by `tools/fetch_commons.py` from the
 - Author: Unknown (Mondadori Publishers)
 - Licence: Public domain
 
+## Guido & Maurizio De Angelis
+
+- File: `de-angelis-brothers/photo.jpg`
+- Source: https://commons.wikimedia.org/wiki/File:Pietro_Torretta_-_1970_-_Cittadella_(PD,_Italy)_(3_di_4).jpg
+- Author: Foto: Gillo Faedi / Redattore: Cesare Marchi / Pubblicazione: "Domenica del Corriere" del 2 giugno 1970
+- Licence: Public domain
+
 ## Ennio Morricone
 
 - File: `ennio-morricone/photo.jpg`
