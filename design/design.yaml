@@ -71,6 +71,9 @@ typography:
     case: none
     color: ink
     space_after: 12
+    bind_max: 3         # a word this short binds to the next one, so a name
+                        # particle -- the "de" of De Angelis -- is never left
+                        # alone at the end of a line. 0 turns it off.
 
   fields:
     performer:

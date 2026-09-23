@@ -135,6 +135,7 @@ class Block:
     space_after: float
     span: object         # grid columns to occupy; "all" spans the measure
     fit: bool            # may shrink on its own to fit the measure
+    bind_max: int        # longest particle that binds to the word after it
     font: object
     variants: List[str] = dc_field(default_factory=list)
     local: float = 1.0   # this block's own shrink, set by fit_width
@@ -163,17 +164,20 @@ class Block:
         return self.text
 
     def fit_width(self, width, scale=1.0):
-        """Shrink this block alone until its longest unbreakable word fits.
+        """Shrink this block alone until its longest unbreakable run fits.
 
         A headline too wide for the measure should come down on its own rather
-        than drag the body copy with it.
+        than drag the body copy with it. The unbreakable run is a bound pair
+        where there is one -- "DE ANGELIS" counts as a single unit, so the
+        headline shrinks to hold it together instead of stranding the "DE".
         """
         self.local = 1.0
         if not self.fit or width <= 0:
             return self.local
+        runs = fontmetrics.bind_particles(self.text.split(), self.bind_max)
         widest = max(
-            (self.font.width(word, self.size * scale, self.tracking)
-             for word in self.text.split()),
+            (self.font.width(run, self.size * scale, self.tracking)
+             for run in runs),
             default=0.0,
         )
         if widest > width:
@@ -182,7 +186,8 @@ class Block:
 
     def wrap(self, width, scale=1.0):
         self.lines = fontmetrics.wrap(
-            self.font, self.text, self.px(scale), width, self.tracking)
+            self.font, self.text, self.px(scale), width, self.tracking,
+            bind_max=self.bind_max)
         return self.lines
 
     def height(self, scale=1.0):
@@ -228,6 +233,7 @@ def build_block(design, data, scheme, name):
         space_after=float(style.get("space_after", 12)),
         span=style.get("span", 1),
         fit=bool(style.get("fit", True)),
+        bind_max=int(style.get("bind_max", fontmetrics.BIND_MAX)),
         font=fontmetrics.load(design.font_file(weight)),
     )
 

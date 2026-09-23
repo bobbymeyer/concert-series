@@ -171,6 +171,29 @@ def load(path):
 TOLERANCE = 0.01
 
 
+# A short word carrying the one after it -- "de" in De Angelis, "van" in Van
+# Dyke -- belongs to that word, and is wrong left alone at the end of a line.
+BIND_MAX = 3
+
+
+def bind_particles(words, bind_max=BIND_MAX):
+    """Join a short leading particle to the word it belongs with.
+
+    Only letters bind: an ampersand or a dash is a connective that reads fine
+    at the end of a line, while "DE" alone on one does not.
+    """
+    if bind_max <= 0:
+        return list(words)
+    bound = []
+    for word in reversed(words):
+        if bound and len(word) <= bind_max and word.isalpha():
+            bound[-1] = f"{word} {bound[-1]}"
+        else:
+            bound.append(word)
+    bound.reverse()
+    return bound
+
+
 def split_word(font, word, size, max_width, tracking=0.0):
     """Break a word that cannot fit on any line, so it can never overflow."""
     pieces, piece = [], ""
@@ -185,17 +208,25 @@ def split_word(font, word, size, max_width, tracking=0.0):
     return pieces or [word]
 
 
-def wrap(font, text, size, max_width, tracking=0.0):
+def wrap(font, text, size, max_width, tracking=0.0, bind_max=BIND_MAX):
     """Greedy word wrap using real advance widths. Returns a list of lines."""
     lines = []
     for paragraph in str(text).split("\n"):
         words = []
-        for word in paragraph.split():
-            # A word wider than the measure is broken rather than left to run out.
-            if font.width(word, size, tracking) > max_width + TOLERANCE:
-                words.extend(split_word(font, word, size, max_width, tracking))
-            else:
+        for word in bind_particles(paragraph.split(), bind_max):
+            if font.width(word, size, tracking) <= max_width + TOLERANCE:
                 words.append(word)
+            elif " " in word:
+                # The pair will not fit even so; break it, and check the parts.
+                for part in word.split():
+                    if font.width(part, size, tracking) <= max_width + TOLERANCE:
+                        words.append(part)
+                    else:
+                        words.extend(
+                            split_word(font, part, size, max_width, tracking))
+            else:
+                # A word wider than the measure is broken rather than run out.
+                words.extend(split_word(font, word, size, max_width, tracking))
         if not words:
             lines.append("")
             continue
