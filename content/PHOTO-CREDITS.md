@@ -7,8 +7,8 @@ named for each. Rebuilt by `tools/fetch_commons.py` from the
 ## Armando Trovajoli
 
 - File: `armando-trovajoli/photo.jpg`
-- Source: https://commons.wikimedia.org/wiki/File:Armando_Trovajoli_1960.jpg
-- Author: Unknown (Mondadori Publishers)
+- Source: https://commons.wikimedia.org/wiki/File:Pietro_Torretta_-_1970_-_Cittadella_(PD,_Italy)_(2_di_4).jpg
+- Author: Foto: Gillo Faedi / Redattore: Cesare Marchi / Pubblicazione: "Domenica del Corriere" del 2 giugno 1970
 - Licence: Public domain
 
 ## Guido & Maurizio De Angelis
@@ -21,9 +21,9 @@ named for each. Rebuilt by `tools/fetch_commons.py` from the
 ## Ennio Morricone
 
 - File: `ennio-morricone/photo.jpg`
-- Source: https://commons.wikimedia.org/wiki/File:Ennio_Morricone_Cannes_2007.jpg
-- Author: Olivier Strecker
-- Licence: CC BY-SA 3.0 https://creativecommons.org/licenses/by-sa/3.0
+- Source: https://commons.wikimedia.org/wiki/File:Roma--rom-atac-sl-1096955.jpg
+- Author: Kurt Rasmussen
+- Licence: Attribution
 
 ## Franco Micalizzi
 
@@ -35,13 +35,13 @@ named for each. Rebuilt by `tools/fetch_commons.py` from the
 ## Piero Piccioni
 
 - File: `piero-piccioni/photo.jpg`
-- Source: https://commons.wikimedia.org/wiki/File:Piero_Piccioni_Look.jpg
-- Author: The original uploader was  Ruffgod  at  Italian Wikipedia .
-- Licence: Public domain
+- Source: https://commons.wikimedia.org/wiki/File:Roma--rom-stefer-strassenbahnlinie-1096815.jpg
+- Author: Kurt Rasmussen
+- Licence: Attribution
 
 ## Stelvio Cipriani
 
 - File: `stelvio-cipriani/photo.jpg`
-- Source: https://commons.wikimedia.org/wiki/File:Stelvio_Cipriani.jpg
-- Author: Unknown author Unknown author
-- Licence: Public domain
+- Source: https://commons.wikimedia.org/wiki/File:Roma-atac-sl-5-mrs-tw-592747.jpg
+- Author: Kurt Rasmussen
+- Licence: Attribution

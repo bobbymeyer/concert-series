@@ -11,11 +11,6 @@ details:
 
 scheme: night             # by name, from design.yaml's palette
 
-# The Commons photo is portrait, which would bisect the page vertically; this
-# pins the horizontal split so the series still shows a row flow, and anchors
-# the crop at the top so the cover crop keeps the face.
-grid:
-  split: horizontal
 image:
   cell: top               # top/bottom here; left/right on a vertical split
   h_align: center

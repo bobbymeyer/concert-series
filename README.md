@@ -211,11 +211,16 @@ Cipriani, Trovajoli, Micalizzi, the De Angelis brothers — chosen because a run
 of six shows off what the series rotation, the grid and the opening-act bill
 each do. The events are invented; the composers are not.
 
-Four of the six carry real photographs from Wikimedia Commons; Franco Micalizzi
-has none under a free licence and the De Angelis brothers' has yet to come down,
-so those two keep a generated stand-in from `tools/make_placeholder.py`. Every
+The photographs are archival rather than portraits: period Rome street scenes,
+a Squadra Volante Giulia, carabinieri outside a courthouse. None of them depicts
+the composer whose name is on the flyer, which is deliberate — a photograph of
+somebody else's face under a performer's name reads as a picture of that
+performer. Scenes carry the period without claiming to be anyone. Every
 photograph's author, licence and source is in `content/PHOTO-CREDITS.md`, built
 from the `photo-credit.yaml` beside each one.
+
+`tools/make_placeholder.py` still writes the generated stand-ins, for a flyer
+that has no photograph yet.
 
 `tools/fetch_commons.py` is what fetches them, from Wikimedia Commons, which
 publishes a licence and an author for every file:

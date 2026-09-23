@@ -7,3 +7,12 @@ time: "9:30 PM"
 cost: $18
 details: >-
   Two reels from the vault, then a live set of the scores that went under them.
+
+# Every archival photo in the series is landscape, which would put every flyer
+# in a row flow; this one pins the vertical split so the column grid is still
+# shown, and anchors the crop so the subject survives the taller cell.
+grid:
+  split: vertical
+image:
+  h_align: center
+  v_align: middle

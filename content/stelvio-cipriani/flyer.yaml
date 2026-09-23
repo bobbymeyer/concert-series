@@ -12,3 +12,12 @@ date: 2026-09-23
 time: "10:00 PM"
 cost: $15
 details: A night of chases, stakeouts and wah-wah, in the order they were written.
+
+# Every archival photo in the series is landscape, which would put every flyer
+# in a row flow; this one pins the vertical split so the column grid is still
+# shown, and anchors the crop so the subject survives the taller cell.
+grid:
+  split: vertical
+image:
+  h_align: start
+  v_align: middle

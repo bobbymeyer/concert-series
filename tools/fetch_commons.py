@@ -59,6 +59,11 @@ _last_call = [0.0]
 # makes the servers render a thumbnail on demand, which is what gets refused.
 THUMB_WIDTHS = (120, 180, 240, 320, 400, 640, 800, 1024, 1280, 2560)
 
+# 800 is the widest that comes back reliably. Measured against these files,
+# 320/640/800 all served immediately while 1024 was refused every time -- and
+# where the original is narrower than 800, 800 returns the original anyway.
+DEFAULT_WIDTH = 800
+
 
 def fetch(url, timeout=30):
     """One paced, retrying request. Returns the raw body."""
@@ -137,7 +142,7 @@ def describe(page, width=1024):
     }
 
 
-def by_title(title, width=1024):
+def by_title(title, width=DEFAULT_WIDTH):
     """One named Commons file, if its licence is free."""
     found = api(action="query", titles=title, prop="imageinfo",
                 iiprop="url|extmetadata|size", iiurlwidth=width)
@@ -150,7 +155,7 @@ def by_title(title, width=1024):
     return item
 
 
-def search(terms, width=1024, limit=20, gate=None):
+def search(terms, width=DEFAULT_WIDTH, limit=20, gate=None):
     """Freely licensed files matching ``terms``.
 
     ``gate`` is an optional name the title has to carry; thematic searches pass
@@ -171,7 +176,7 @@ def search(terms, width=1024, limit=20, gate=None):
     return out
 
 
-def candidates(name, query=None, width=1024, limit=12):
+def candidates(name, query=None, width=DEFAULT_WIDTH, limit=12):
     """Freely licensed photos that are plausibly of ``name``, best guess first."""
     search_terms = query or name
     if width not in THUMB_WIDTHS:
