@@ -2,6 +2,7 @@
 # row across the band. This one pins its scheme and crop instead of taking the
 # deterministic pick.
 performer: Marta Reyes Trio
+openers: Nix & Nine       # a single act needs no list
 venue: Gallery 9
 address: 9 Ludlow Street, New York
 date: 2026-11-14

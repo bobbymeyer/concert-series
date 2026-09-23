@@ -8,7 +8,8 @@ import yaml
 from .imageinfo import probe
 from .units import to_pt
 
-FIELDS = ("performer", ("venue", "address"), ("date", "time"), "cost", "details")
+FIELDS = (("performer", "openers"), ("venue", "address"), ("date", "time"),
+          "cost", "details")
 IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg")
 
 

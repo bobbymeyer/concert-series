@@ -82,15 +82,19 @@ def _patterns(key, formats):
     return [patterns] if isinstance(patterns, str) else list(patterns)
 
 
-def format_variants(name, value, formats):
+def format_variants(name, value, formats, join=None):
     """Every acceptable rendering of a yaml value, longest first.
 
     A date given as a real date can be set several ways, so the layout can
     fall back to a shorter one when the column it lands in is too narrow for
     the long one. A date given as a string has only itself.
+
+    A list is one line per item, unless the field gives a ``join`` -- the
+    opening acts are set as one bill rather than a stack of names.
     """
     if isinstance(value, (list, tuple)):
-        return ["\n".join(format_variants(name, v, formats)[0] for v in value)]
+        parts = [format_variants(name, v, formats)[0] for v in value]
+        return [("\n" if join is None else join).join(parts)]
     if isinstance(value, dt.datetime):
         key = "time" if name == "time" else "date"
         return [value.strftime(p) for p in _patterns(key, formats)]
@@ -103,9 +107,9 @@ def format_variants(name, value, formats):
     return [str(value)]
 
 
-def format_value(name, value, formats):
+def format_value(name, value, formats, join=None):
     """The longest rendering of a yaml value."""
-    return format_variants(name, value, formats)[0]
+    return format_variants(name, value, formats, join)[0]
 
 
 def apply_case(text, case):
@@ -203,8 +207,14 @@ def build_block(design, data, scheme, name):
     if value is None or (isinstance(value, (str, list, tuple)) and len(value) == 0):
         return None
     style = design.field_style(name)
+    limit = style.get("max_items")
+    if limit is not None and isinstance(value, (list, tuple)) and len(value) > int(limit):
+        raise LayoutError(
+            f"{name}: {len(value)} given, at most {limit} fit the design "
+            f"({', '.join(str(v) for v in value)})")
     variants = [apply_case(text, style.get("case"))
-                for text in format_variants(name, value, design.formats)]
+                for text in format_variants(name, value, design.formats,
+                                            style.get("join"))]
     weight = int(style.get("weight", 400))
     return Block(
         name=name,

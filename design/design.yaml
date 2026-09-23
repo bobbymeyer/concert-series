@@ -56,7 +56,7 @@ typography:
   # Each entry is one cell of the grid. A list stacks those fields into one
   # cell, so the address sits under the venue and the time under the date.
   order:
-    - performer
+    - [performer, openers]
     - [venue, address]
     - [date, time]
     - cost
@@ -81,6 +81,16 @@ typography:
       leading: 0.92
       space_after: 14
       span: all       # the headline always takes the full measure
+    openers:
+      size: 22
+      weight: 700
+      case: upper
+      tracking: 0.01
+      leading: 1.15
+      space_after: 20
+      span: all
+      join: " + "     # the supporting acts read as one bill, not a stack
+      max_items: 4
     venue:
       size: 19
       weight: 700

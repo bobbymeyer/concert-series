@@ -347,6 +347,64 @@ class TestDeterminism(unittest.TestCase):
         self.assertGreater(len(picks), 1, "seeds should reach different layouts")
 
 
+class TestOpeners(unittest.TestCase):
+    """Nought to four supporting acts, set as one bill under the headline."""
+
+    ACTS = ["Signal Hill", "Paper Anchor", "Nix & Nine", "Ora"]
+
+    def bill(self, acts, size=(90, 60)):
+        overrides = {} if acts is None else {"openers": acts}
+        with Fixture(overrides, size=size) as flyer:
+            page = plan(flyer, "p.png")
+            lines = [l.text for l in page.lines if l.field == "openers"]
+            return page, " ".join(lines)
+
+    def test_none_at_all(self):
+        for acts in (None, [], ""):
+            with self.subTest(acts=acts):
+                page, text = self.bill(acts)
+                self.assertEqual(text, "")
+                self.assertEqual(page.notes["rows"][0], [["performer"]])
+
+    def test_one_through_four(self):
+        for n in range(1, 5):
+            with self.subTest(n=n):
+                page, text = self.bill(self.ACTS[:n])
+                for act in self.ACTS[:n]:
+                    self.assertIn(act.upper(), text)
+                self.assertEqual(text.count("+"), n - 1)
+                self.assertEqual(page.notes["rows"][0],
+                                 [["performer", "openers"]])
+
+    def test_a_single_act_needs_no_list(self):
+        _, text = self.bill("Signal Hill")
+        self.assertEqual(text, "SIGNAL HILL")
+
+    def test_a_fifth_act_is_refused(self):
+        with self.assertRaisesRegex(LayoutError, "at most 4"):
+            self.bill(self.ACTS + ["One Too Many"])
+
+    def test_the_bill_sits_under_the_headline_at_full_width(self):
+        page, _ = self.bill(self.ACTS[:2])
+        box = text_box(page)
+        head = [l for l in page.lines if l.field == "performer"]
+        acts = [l for l in page.lines if l.field == "openers"]
+        self.assertTrue(acts)
+        self.assertLess(max(l.baseline for l in head),
+                        min(l.baseline for l in acts))
+        for line in head + acts:
+            self.assertEqual(line.x, box.x)          # both span the measure
+            self.assertLessEqual(line.width, box.w + EPS)
+
+    def test_the_bill_is_smaller_than_the_headline(self):
+        page, _ = self.bill(self.ACTS[:2])
+        head = next(l.size for l in page.lines if l.field == "performer")
+        act = next(l.size for l in page.lines if l.field == "openers")
+        venue = next(l.size for l in page.lines if l.field == "venue")
+        self.assertLess(act, head)
+        self.assertGreater(act, venue)
+
+
 class TestSeries(unittest.TestCase):
     """Unpinned grounds rotate through the palette rather than being hashed."""
 

@@ -36,7 +36,8 @@ the headline takes a row to itself and reads as a banner:
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│ MARTA REYES TRIO                                     │  performer, all
+│ MARTA REYES TRIO                                     │  [performer,
+│ NIX & NINE                                           │   openers] all
 ├────────────────────┬─────────────────────┬───────────┤
 │ GALLERY 9          │ Saturday, November 14│ FREE     │  [venue, address] 2
 │ 9 Ludlow Street    │ 9:30 PM              │          │  [date, time] 2, cost 1
@@ -106,6 +107,9 @@ content/
 
 ```yaml
 performer: Cardinal Wax
+openers:                    # nought to four supporting acts
+  - Signal Hill
+  - Paper Anchor
 venue: The Bell House
 address: 149 Seventh Street, Brooklyn
 date: 2026-10-03            # a real date, formatted by design.yaml
@@ -116,7 +120,10 @@ details: >-
 ```
 
 Every field is optional; missing ones are skipped, and a stack whose fields are
-all missing takes no cell. `details` may be a list, and
+all missing takes no cell. `openers` takes up to four acts — a list, or a bare
+string for one — and sets them as a single bill under the headline, joined by
+the field's `join`. A fifth is refused rather than quietly crowding the page;
+`max_items` on any field sets that limit. `details` may be a list, and
 each item becomes its own line. A folder with one image needs no `image:` key.
 
 A flyer may also override any part of the design in place — `page:`,
@@ -175,7 +182,7 @@ python3 -m flyer build [slug ...]   # render to out/ (the default command)
 python3 -m flyer list               # content folders and their photos
 python3 -m flyer inspect [slug]     # the resolved slots and every baseline
 python3 -m flyer sheet              # out/index.html, a contact sheet
-make test                           # 88 tests, standard library only
+make test                           # 94 tests, standard library only
 ```
 
 `build` prints what each flyer resolved to:

@@ -2,6 +2,9 @@
 # column. Nothing here pins the grid, so the cell and crop are picked from the
 # folder name — stable across runs, different from the next flyer.
 performer: Cardinal Wax
+openers:                  # nought to four; omit the key for none
+  - Signal Hill
+  - Paper Anchor
 venue: The Bell House
 address: 149 Seventh Street, Brooklyn
 date: 2026-10-03          # a real date: design.yaml formats it, and can set
