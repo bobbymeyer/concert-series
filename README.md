@@ -38,6 +38,7 @@ open out/index.html
 | `make` / `make all` | `build`, then `sheet` |
 | `make build` | render every content folder |
 | `make sheet` | build, then write `out/index.html` |
+| `make web` | rescreen the photos at `WEB_DPI` (150) and build to `out/web` |
 | `make list` | list content folders |
 | `make test` | `python3 -m unittest discover -s tests` |
 | `make clean` | `rm -rf out` |
@@ -77,6 +78,7 @@ all missing takes no grid cell.
 | Key | Takes |
 | --- | --- |
 | `image` | filename, or a block with `file:`. Omit it when the folder holds one image |
+| `source.*` | not a key: a file. The unscreened original, ignored when picking the image |
 | `scheme` | a name from `palette.colors` |
 | `color`, `background` | hex, overriding the scheme's ground |
 | `seed` | any value; changes which slots are drawn |
@@ -199,8 +201,19 @@ python3 tools/halftone.py --write
 | `--ink HEX` | the one ink, before the flyer's ramp; `#141414` |
 | `--force` | screen a photo that is already screened |
 
-The crop is baked in, so a screened photo ignores `image.h_align` and
-`image.v_align`. Re-screening one is refused; fetch the original again first.
+Screening reads `content/<slug>/source.*`, the unscreened original, when the
+folder keeps one; the flyer never treats that file as its image. Without a
+source it reads the photo itself, once: the crop is baked in, so a screened
+photo ignores `image.h_align` and `image.v_align`, and re-screening it is
+refused.
+
+The committed photos are screened at 300 dpi, for the printer. For the web,
+rescreen from the sources at half that and build beside them:
+
+```sh
+make web                    # out/web, about 1.1MB a flyer
+make web WEB_DPI=200
+```
 
 Take photos from Wikimedia Commons. `tools/fetch_commons.py` keeps only CC0,
 CC BY, CC BY-SA and public domain, and writes `content/PHOTO-CREDITS.md`:
@@ -228,6 +241,8 @@ inlined as a data URI and the font weights in use are embedded as `@font-face`.
 Each line of type carries its measured width as `textLength`. The photo's tone
 is an SVG filter, not a CSS blend mode.
 
+About 2.6MB a flyer at the committed 300 dpi screen, 1.1MB from `make web`.
+
 ## tech
 
 Python 3.11 and PyYAML. No other dependencies; the type is measured by reading
@@ -238,7 +253,7 @@ the font's own tables. The tools in `tools/` ask for more, and nothing in
 make test
 ```
 
-126 tests. The eight covering `tools/halftone.py` want Pillow and skip
+131 tests. The eleven covering `tools/halftone.py` want Pillow and skip
 without it; the rest are standard library only. Default branch is `main`.
 
 Type is [Rethink Sans](https://github.com/hans-thiessen/Rethink-Sans) by Hans

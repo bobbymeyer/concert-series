@@ -1,6 +1,8 @@
 """Cropping, seeding and the rescreen guard. Needs Pillow; skipped without it."""
 
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -66,3 +68,27 @@ class TestRescreenGuard(unittest.TestCase):
             for y in range(256):
                 ramp.putpixel((x, y), x)
         self.assertFalse(halftone.is_screened(ramp))
+
+
+@unittest.skipIf(halftone is None, "Pillow is not installed")
+class TestSource(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+
+    def test_a_folder_without_one_reports_nothing(self):
+        (self.tmp / "photo.png").touch()
+        self.assertIsNone(halftone.source_for(self.tmp))
+
+    def test_the_original_is_found_whatever_it_is_named(self):
+        for name in ("source.jpg", "source.PNG", "source.webp"):
+            with self.subTest(name):
+                folder = self.tmp / name
+                folder.mkdir()
+                (folder / name).touch()
+                self.assertEqual(halftone.source_for(folder).name, name)
+
+    def test_a_stray_file_is_not_a_source(self):
+        (self.tmp / "source.txt").touch()
+        (self.tmp / "sources.jpg").touch()
+        self.assertIsNone(halftone.source_for(self.tmp))

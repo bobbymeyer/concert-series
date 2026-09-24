@@ -11,6 +11,8 @@ from .units import to_pt
 FIELDS = (("performer", "openers"), ("venue", "address"), ("date", "time"),
           "cost", "details")
 IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg")
+# `source.*` is what tools/halftone.py screens from, not a flyer's image.
+SOURCE_STEM = "source"
 
 
 class ConfigError(Exception):
@@ -125,6 +127,7 @@ class Flyer:
         found = sorted(
             p for p in self.folder.iterdir()
             if p.suffix.lower() in IMAGE_SUFFIXES and p.is_file()
+            and p.stem.lower() != SOURCE_STEM
         )
         if not found:
             raise ConfigError(f"{self.folder}: no image file")

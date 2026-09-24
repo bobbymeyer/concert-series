@@ -9,7 +9,9 @@ black to the shadow and white to the highlight, tints the dots rather than
 blurring them.
 
 The cell is cropped to first, at the alignment the flyer resolved, so the
-photo's own ``h_align``/``v_align`` have nothing left to move.
+photo's own ``h_align``/``v_align`` have nothing left to move. Screening reads
+``source.*`` when the folder keeps one, so the same original can be rescreened
+at any ruling or resolution; otherwise it reads the flyer's own photo, once.
 
 Needs Pillow and the ``halftoner`` command:
 https://github.com/bobbymeyer/halftoner
@@ -40,6 +42,14 @@ from flyer.render import render                                # noqa: E402
 PT_PER_IN = 72.0
 ANCHOR = {"start": 0.0, "middle": 0.5, "end": 1.0}
 SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+
+
+def source_for(folder):
+    """The unscreened original, if the folder keeps one beside the photo."""
+    for path in sorted(folder.iterdir()):
+        if path.stem.lower() == "source" and path.suffix.lower() in SUFFIXES:
+            return path
+    return None
 
 
 def cell_of(flyer):
@@ -118,11 +128,12 @@ def main(argv=None):
     design = Design.load(args.design)
     for folder in resolve(args.content, args.slugs):
         flyer = Flyer(folder, design)
-        source = flyer.image_path
+        source = source_for(folder) or flyer.image_path
         w, h, hx, vy = cell_of(flyer)
         with Image.open(source) as image:
             screened = is_screened(image)
-            note = "already screened" if screened else f"{image.width}x{image.height}"
+            note = ("already screened" if screened
+                    else f"{source.name} {image.width}x{image.height}")
             if not args.write or (screened and not args.force):
                 print(f"{flyer.slug:28} {w:.2f}x{h:.2f}in  {note}")
                 continue
@@ -133,11 +144,11 @@ def main(argv=None):
             cropped.save(staged)
             target = folder / "photo.png"
             halftone(staged, target, (w, h), args, seed_for(flyer.slug))
-        for old in folder.glob("photo.*"):
-            if old != target and old.suffix.lower() in SUFFIXES:
-                old.unlink()
+        for stale in folder.glob("photo.*"):
+            if stale != target and stale.suffix.lower() in SUFFIXES:
+                stale.unlink()
         print(f"{flyer.slug:28} {w:.2f}x{h:.2f}in  {args.ruling}lpi "
-              f"{args.profile}  {target.stat().st_size // 1024}kB")
+              f"{args.dpi}dpi {args.profile}  {target.stat().st_size // 1024}kB")
     return 0
 
 

@@ -58,6 +58,21 @@ class TestFlyer(unittest.TestCase):
             with self.assertRaisesRegex(ConfigError, "name one with"):
                 Flyer(flyer.folder, flyer.design)
 
+    def test_a_source_is_not_a_second_photo(self):
+        """`source.*` is what halftone.py screens from, so it never counts."""
+        with Fixture() as flyer:
+            (flyer.folder / "source.jpg").write_bytes(flyer.image_path.read_bytes())
+            self.assertEqual(Flyer(flyer.folder, flyer.design).image_path.name,
+                             "photo.png")
+
+    def test_a_source_can_still_be_named(self):
+        with Fixture() as flyer:
+            (flyer.folder / "source.png").write_bytes(flyer.image_path.read_bytes())
+            text = (flyer.folder / "flyer.yaml").read_text()
+            (flyer.folder / "flyer.yaml").write_text(text + "\nimage: source.png\n")
+            self.assertEqual(Flyer(flyer.folder, flyer.design).image_path.name,
+                             "source.png")
+
     def test_a_named_photo_resolves_the_ambiguity(self):
         with Fixture() as flyer:
             (flyer.folder / "chosen.png").write_bytes(flyer.image_path.read_bytes())
