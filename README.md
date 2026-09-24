@@ -217,6 +217,27 @@ make web                    # out/web, about 1.4MB a flyer
 make web WEB_DPI=200
 ```
 
+Make the same flyers the other way, to compare. `tools/diffuse.py` hands the
+same fields, the same ground and the same house brief to an image model in one
+prompt and keeps what comes back -- no layout engine, no second pass. Needs an
+OpenAI key in `OPENAI_API_KEY`:
+
+```sh
+python3 tools/diffuse.py --dry-run          # print the prompts, spend nothing
+python3 tools/diffuse.py ennio-morricone
+```
+
+| `diffuse.py` | Does |
+| --- | --- |
+| `[slug ...]` | generate each flyer; omit for all |
+| `--dry-run` | print the prompts and call nothing |
+| `--model NAME` | `gpt-image-1` |
+| `--size WxH` | `1024x1536`, the nearest portrait size the model offers |
+| `--quality` | `low`, `medium`, `high`; `high` |
+| `--out DIR` | `out/diffusion` |
+
+The page is 8.5 by 11in, which the model cannot be asked for: 1024x1536 is 2:3.
+
 Take photos from Wikimedia Commons. `tools/fetch_commons.py` keeps only CC0,
 CC BY, CC BY-SA and public domain, and writes `content/PHOTO-CREDITS.md`:
 
