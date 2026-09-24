@@ -179,6 +179,29 @@ Generate a stand-in photo for a flyer that has none:
 python3 tools/make_placeholder.py content/piero-piccioni/photo.png 900x1200
 ```
 
+Screen the photos for a one-ink press. `tools/halftone.py` crops each one to
+its cell at the alignment the flyer resolved, then halftones it at the cell's
+printed size, so the dots land 1:1 on the page. Needs Pillow and
+[halftoner](https://github.com/bobbymeyer/halftoner):
+
+```sh
+python3 tools/halftone.py                       # report, write nothing
+python3 tools/halftone.py --write
+```
+
+| `halftone.py` | Does |
+| --- | --- |
+| `[slug ...]` | report each flyer's cell and photo; omit for all |
+| `--write` | replace the photo; without it nothing is written |
+| `--profile NAME` | halftoner press profile; `newsprint_nominal` |
+| `--ruling N` | screen, in lines per inch; `45` |
+| `--dpi N` | device resolution; `300` |
+| `--ink HEX` | the one ink, before the flyer's ramp; `#141414` |
+| `--force` | screen a photo that is already screened |
+
+The crop is baked in, so a screened photo ignores `image.h_align` and
+`image.v_align`. Re-screening one is refused; fetch the original again first.
+
 Take photos from Wikimedia Commons. `tools/fetch_commons.py` keeps only CC0,
 CC BY, CC BY-SA and public domain, and writes `content/PHOTO-CREDITS.md`:
 
@@ -208,18 +231,20 @@ is an SVG filter, not a CSS blend mode.
 ## tech
 
 Python 3.11 and PyYAML. No other dependencies; the type is measured by reading
-the font's own tables.
+the font's own tables. The tools in `tools/` ask for more, and nothing in
+`flyer/` needs them.
 
 ```sh
 make test
 ```
 
-118 tests, standard library only. Default branch is `main`.
+126 tests. The eight covering `tools/halftone.py` want Pillow and skip
+without it; the rest are standard library only. Default branch is `main`.
 
 Type is [Rethink Sans](https://github.com/hans-thiessen/Rethink-Sans) by Hans
 Thiessen under the SIL Open Font License 1.1, vendored in `design/fonts/` as
 four static instances.
 
-The example photographs are archival, from Wikimedia Commons, credited in
-`content/PHOTO-CREDITS.md`. None of them depicts the composer named on the
-flyer.
+The example photographs are archival, from Wikimedia Commons, screened at
+45 lpi and credited in `content/PHOTO-CREDITS.md`. None of them depicts the
+composer named on the flyer.

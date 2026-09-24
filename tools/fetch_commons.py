@@ -215,8 +215,9 @@ def write_credits(root):
         return 0
     lines = ["# Photo credits", "",
              "Performer photos taken from Wikimedia Commons under the licence",
-             "named for each. Rebuilt by `tools/fetch_commons.py` from the",
-             f"`{CREDIT_FILE}` beside each photo.", ""]
+             "named for each, then cropped to their cell and halftoned. Rebuilt",
+             f"by `tools/fetch_commons.py` from the `{CREDIT_FILE}` beside each",
+             "photo.", ""]
     for slug, row in sorted(rows):
         lines += [f"## {row.get('performer', slug)}", "",
                   f"- File: `{slug}/{row.get('file', '')}`",
