@@ -183,7 +183,8 @@ python3 tools/make_placeholder.py content/piero-piccioni/photo.png 900x1200
 
 Screen the photos for a one-ink press. `tools/halftone.py` crops each one to
 its cell at the alignment the flyer resolved, then halftones it at the cell's
-printed size, so the dots land 1:1 on the page. Needs Pillow and
+printed size, so the dots land 1:1 on the page, turned off the page axes so
+the screen reads as a screen rather than as a grid. Needs Pillow and
 [halftoner](https://github.com/bobbymeyer/halftoner):
 
 ```sh
@@ -197,6 +198,7 @@ python3 tools/halftone.py --write
 | `--write` | replace the photo; without it nothing is written |
 | `--profile NAME` | halftoner press profile; `newsprint_nominal` |
 | `--ruling N` | screen, in lines per inch; `45` |
+| `--angle DEG` | screen angle off the page axes; `22.5`. At `45` the dots land back on a straight grid |
 | `--dpi N` | device resolution; `300` |
 | `--ink HEX` | the one ink, before the flyer's ramp; `#141414` |
 | `--force` | screen a photo that is already screened |
@@ -211,7 +213,7 @@ The committed photos are screened at 300 dpi, for the printer. For the web,
 rescreen from the sources at half that and build beside them:
 
 ```sh
-make web                    # out/web, about 1.1MB a flyer
+make web                    # out/web, about 1.4MB a flyer
 make web WEB_DPI=200
 ```
 
@@ -241,7 +243,7 @@ inlined as a data URI and the font weights in use are embedded as `@font-face`.
 Each line of type carries its measured width as `textLength`. The photo's tone
 is an SVG filter, not a CSS blend mode.
 
-About 2.6MB a flyer at the committed 300 dpi screen, 1.1MB from `make web`.
+About 3.2MB a flyer at the committed 300 dpi screen, 1.4MB from `make web`.
 
 ## tech
 
@@ -253,7 +255,7 @@ the font's own tables. The tools in `tools/` ask for more, and nothing in
 make test
 ```
 
-131 tests. The eleven covering `tools/halftone.py` want Pillow and skip
+134 tests. The fourteen covering `tools/halftone.py` want Pillow and skip
 without it; the rest are standard library only. Default branch is `main`.
 
 Type is [Rethink Sans](https://github.com/hans-thiessen/Rethink-Sans) by Hans

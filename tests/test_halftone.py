@@ -1,5 +1,6 @@
 """Cropping, seeding and the rescreen guard. Needs Pillow; skipped without it."""
 
+import json
 import shutil
 import sys
 import tempfile
@@ -92,3 +93,28 @@ class TestSource(unittest.TestCase):
         (self.tmp / "source.txt").touch()
         (self.tmp / "sources.jpg").touch()
         self.assertIsNone(halftone.source_for(self.tmp))
+
+
+@unittest.skipIf(halftone is None, "Pillow is not installed")
+class TestScreenAngle(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.recipe = self.tmp / "r.json"
+        self.recipe.write_text(json.dumps(
+            {"inks": [{"name": "k", "angle": 45}, {"name": "r", "angle": 75}],
+             "screen": {"ruling_lpi": 45.0}}))
+
+    def test_every_ink_is_turned(self):
+        data = halftone.turn_screen(self.recipe, 22.5)
+        self.assertEqual([i["angle"] for i in data["inks"]], [22.5, 22.5])
+
+    def test_the_recipe_on_disk_is_rewritten(self):
+        halftone.turn_screen(self.recipe, 15)
+        written = json.loads(self.recipe.read_text())
+        self.assertEqual(written["inks"][0]["angle"], 15)
+
+    def test_the_rest_of_the_recipe_survives(self):
+        data = halftone.turn_screen(self.recipe, 22.5)
+        self.assertEqual(data["screen"]["ruling_lpi"], 45.0)
+        self.assertEqual(data["inks"][1]["name"], "r")

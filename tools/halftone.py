@@ -23,6 +23,7 @@ https://github.com/bobbymeyer/halftoner
 
 import argparse
 import hashlib
+import json
 import subprocess
 import sys
 import tempfile
@@ -88,6 +89,20 @@ def is_screened(image):
     return max(counts) > sum(counts) * 0.10
 
 
+def turn_screen(recipe, angle):
+    """Set every ink's screen angle in a recipe halftoner has just written.
+
+    A square screen at 45 degrees is still a square screen: its dots fall into
+    straight rows up and down the page, which is the one angle that reads as a
+    grid rather than as a screen. Turning it off the page axes breaks that.
+    """
+    data = json.loads(recipe.read_text())
+    for ink in data["inks"]:
+        ink["angle"] = angle
+    recipe.write_text(json.dumps(data))
+    return data
+
+
 def halftone(source, target, size, args, seed):
     """Run halftoner over one cropped image, in a recipe folder of its own."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -99,6 +114,7 @@ def halftone(source, target, size, args, seed):
              "--size", "{:g}x{:g}".format(*size), "--unit", "in",
              "--dpi", str(args.dpi), "--ink", f"k={args.ink}",
              "--ruling", str(args.ruling), "--seed", str(seed)])
+        turn_screen(recipe, args.angle)
         run(["halftoner", "render", str(recipe), "--target", "screen", "--out", str(tmp)])
         rendered = next(tmp.glob("*.png"))
         # One channel: the screen is bilevel, so grey costs nothing and saves half.
@@ -116,6 +132,10 @@ def main(argv=None):
                         help="halftoner press profile (default: %(default)s)")
     parser.add_argument("--ruling", type=int, default=45,
                         help="screen, in lines per inch (default: %(default)s)")
+    parser.add_argument("--angle", type=float, default=22.5,
+                        help="screen angle, in degrees off the page axes; "
+                             "45 lands the dots back on a straight grid "
+                             "(default: %(default)s)")
     parser.add_argument("--dpi", type=int, default=300,
                         help="device resolution (default: %(default)s)")
     parser.add_argument("--ink", default="#141414",
@@ -148,7 +168,8 @@ def main(argv=None):
             if stale != target and stale.suffix.lower() in SUFFIXES:
                 stale.unlink()
         print(f"{flyer.slug:28} {w:.2f}x{h:.2f}in  {args.ruling}lpi "
-              f"{args.dpi}dpi {args.profile}  {target.stat().st_size // 1024}kB")
+              f"@{args.angle:g}deg {args.dpi}dpi {args.profile}  "
+              f"{target.stat().st_size // 1024}kB")
     return 0
 
 
