@@ -177,7 +177,7 @@ def main(argv=None):
     parser.add_argument("slugs", nargs="*", help="content folders; omit for all")
     parser.add_argument("--design", default="design/design.yaml")
     parser.add_argument("--content", default="content")
-    parser.add_argument("--out", default="out/diffusion")
+    parser.add_argument("--out", default="content/diffusion")
     parser.add_argument("--model", default="gpt-image-1")
     parser.add_argument("--size", default="1024x1536",
                         help="the model's nearest portrait size; the page is "

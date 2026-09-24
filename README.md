@@ -234,9 +234,10 @@ python3 tools/diffuse.py ennio-morricone
 | `--model NAME` | `gpt-image-1` |
 | `--size WxH` | `1024x1536`, the nearest portrait size the model offers |
 | `--quality` | `low`, `medium`, `high`; `high` |
-| `--out DIR` | `out/diffusion` |
+| `--out DIR` | `content/diffusion` |
 
-The page is 8.5 by 11in, which the model cannot be asked for: 1024x1536 is 2:3.
+The page is 8.5 by 11in, which the model cannot be asked for: 1024x1536 is
+2:3. The six it returned are kept in `content/diffusion/`, as they came back.
 
 Take photos from Wikimedia Commons. `tools/fetch_commons.py` keeps only CC0,
 CC BY, CC BY-SA and public domain, and writes `content/PHOTO-CREDITS.md`:
