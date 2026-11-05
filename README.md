@@ -2,6 +2,14 @@
 
 Print-ready concert flyers from a photo and a yaml file, in one house style.
 
+The code here supports [a post on procedural versus diffusion design][post]: it
+makes the same six flyers twice, once from the yaml in `content/` and once by
+asking an image model for them. You are welcome to use any of it, but it was
+written to make that argument rather than to be used, and it is not maintained
+toward anything else.
+
+[post]: https://bobbymeyer.com/posts/concert-series/
+
 ## quickstart
 
 ```sh
